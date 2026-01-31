@@ -26,51 +26,51 @@ services:
       retries: 5
       start_period: 30s
 
-  # # MySQL Database for CustomerService
-  # mysql-customer:
-  #   image: mysql:8.0
-  #   container_name: mysql-customer
-  #   ports:
-  #     - "3309:3306"
-  #   environment:
-  #     MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-  #     MYSQL_DATABASE: customerservice
-  #     MYSQL_USER: ${CUSTOMER_DB_USERNAME}
-  #     MYSQL_PASSWORD: ${CUSTOMER_DB_PASSWORD}
-  #   volumes:
-  #     - mysql_customer_data:/var/lib/mysql
-  #   networks:
-  #     - predict-app-network
-  #   restart: unless-stopped
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD || exit 1"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
-  #     start_period: 30s
+  # MySQL Database for CustomerService
+  mysql-customer:
+    image: mysql:8.0
+    container_name: mysql-customer
+    ports:
+      - "3309:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: customerservice
+      MYSQL_USER: ${CUSTOMER_DB_USERNAME}
+      MYSQL_PASSWORD: ${CUSTOMER_DB_PASSWORD}
+    volumes:
+      - mysql_customer_data:/var/lib/mysql
+    networks:
+      - smart-lend-platform-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
-  # # MySQL Database for PredictionService
-  # mysql-prediction:
-  #   image: mysql:8.0
-  #   container_name: mysql-prediction
-  #   ports:
-  #     - "3310:3306"
-  #   environment:
-  #     MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-  #     MYSQL_DATABASE: predictionservice
-  #     MYSQL_USER: ${PREDICTION_DB_USERNAME}
-  #     MYSQL_PASSWORD: ${PREDICTION_DB_PASSWORD}
-  #   volumes:
-  #     - mysql_prediction_data:/var/lib/mysql
-  #   networks:
-  #     - predict-app-network
-  #   restart: unless-stopped
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD || exit 1"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
-  #     start_period: 30s
+  # MySQL Database for PredictionService
+  mysql-prediction:
+    image: mysql:8.0
+    container_name: mysql-prediction
+    ports:
+      - "3310:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: predictionservice
+      MYSQL_USER: ${PREDICTION_DB_USERNAME}
+      MYSQL_PASSWORD: ${PREDICTION_DB_PASSWORD}
+    volumes:
+      - mysql_prediction_data:/var/lib/mysql
+    networks:
+      - smart-lend-platform-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   # # MySQL Database for AnalyticsService
   # mysql-analystic:
@@ -86,7 +86,7 @@ services:
   #   volumes:
   #     - mysql_analystic_data:/var/lib/mysql
   #   networks:
-  #     - predict-app-network
+  #     - smart-lend-platform-network
   #   restart: unless-stopped
   #   healthcheck:
   #     test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD || exit 1"]
@@ -95,27 +95,27 @@ services:
   #     retries: 5
   #     start_period: 30s
 
-  # # RabbitMQ Message Broker
-  # rabbitmq:
-  #   image: rabbitmq:3-management
-  #   container_name: rabbitmq
-  #   ports:
-  #     - "5672:5672"    # AMQP port
-  #     - "15672:15672"  # Management UI port
-  #   environment:
-  #     RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME}
-  #     RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
-  #     RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VIRTUAL_HOST}
-  #   volumes:
-  #     - rabbitmq_data:/var/lib/rabbitmq
-  #   networks:
-  #     - predict-app-network
-  #   restart: unless-stopped
-  #   healthcheck:
-  #     test: ["CMD", "rabbitmq-diagnostics", "ping"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 5
+  # RabbitMQ Message Broker
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"    # AMQP port
+      - "15672:15672"  # Management UI port
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VIRTUAL_HOST}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - smart-lend-platform-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
   # Redis Cache
   redis:
@@ -227,200 +227,168 @@ services:
       retries: 5
       start_period: 60s
 
-  # # CustomerService (Customer Profile Management)
-  # customerservice:
-  #   build:
-  #     context: ./customerservice
-  #     dockerfile: Dockerfile
-  #   container_name: customerservice
-  #   ports:
-  #     - "8007:8007"
-  #   environment:
-  #     SPRING_PROFILES_ACTIVE: docker
-  #     SPRING_DATASOURCE_URL: ${CUSTOMER_DB_URL}
-  #     SPRING_DATASOURCE_USERNAME: ${CUSTOMER_DB_USERNAME}
-  #     SPRING_DATASOURCE_PASSWORD: ${CUSTOMER_DB_PASSWORD}
-  #     EUREKA_SERVER_URL: ${EUREKA_SERVER_URL}
-  #     SPRING_RABBITMQ_HOST: rabbitmq
-  #     SPRING_RABBITMQ_PORT: 5672
-  #     SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
-  #     SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
-  #     # RabbitMQ Queue Configuration for CustomerService
-  #     RABBITMQ_EXCHANGE_CUSTOMER_PROFILE_REQUESTED: customer.profile.exchange
-  #     RABBITMQ_QUEUE_CUSTOMER_PROFILE_REQUESTED: customer.profile.request
-  #     RABBITMQ_ROUTING_KEY_CUSTOMER_PROFILE_REQUESTED: customer.profile.requested
-  #     RABBITMQ_EXCHANGE_CUSTOMER_PROFILE_ENRICHED: customer.profile.exchange
-  #     RABBITMQ_QUEUE_CUSTOMER_PROFILE_ENRICHED: customer.profile.enriched
-  #     RABBITMQ_ROUTING_KEY_CUSTOMER_PROFILE_ENRICHED: customer.profile.enriched
-  #     RABBITMQ_EXCHANGE_PREDICTION_COMPLETED: prediction.exchange
-  #     RABBITMQ_QUEUE_PREDICTION_COMPLETED_CUSTOMER: prediction.completed-customer
-  #     RABBITMQ_ROUTING_KEY_PREDICTION_COMPLETED_CUSTOMER: prediction.completed-customer
-  #   networks:
-  #     - predict-app-network
-  #   restart: unless-stopped
-  #   depends_on:
-  #     mysql-customer:
-  #       condition: service_healthy
-  #     rabbitmq:
-  #       condition: service_healthy
-  #     eureka-server:
-  #       condition: service_started
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "curl -f ${EUREKA_SERVER_URL}/actuator/health || exit 1"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 5
-  #     start_period: 60s
+  # CustomerService (Customer Profile Management)
+  customerservice:
+    build:
+      context: .
+      dockerfile: ./customerservice/Dockerfile
+    container_name: customerservice
+    ports:
+      - "8006:8006"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: ${CUSTOMER_DB_URL}
+      SPRING_DATASOURCE_USERNAME: ${CUSTOMER_DB_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${CUSTOMER_DB_PASSWORD}
+      EUREKA_SERVER_URL: ${EUREKA_SERVER_URL}
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      # RabbitMQ Queue Configuration for CustomerService
 
-  # # PredictionService (ML Prediction Management)
-  # predictionservice:
-  #   build:
-  #     context: ./predictionservice
-  #     dockerfile: Dockerfile
-  #   container_name: predictionservice
-  #   ports:
-  #     - "8008:8008"
-  #   environment:
-  #     SPRING_PROFILES_ACTIVE: docker
-  #     SPRING_DATASOURCE_URL: ${PREDICTION_DB_URL}
-  #     SPRING_DATASOURCE_USERNAME: ${PREDICTION_DB_USERNAME}
-  #     SPRING_DATASOURCE_PASSWORD: ${PREDICTION_DB_PASSWORD}
-  #     EUREKA_SERVER_URL: ${EUREKA_SERVER_URL}
-  #     SPRING_RABBITMQ_HOST: rabbitmq
-  #     SPRING_RABBITMQ_PORT: 5672
-  #     SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
-  #     SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
-  #     RABBITMQ_HOST: rabbitmq
-  #     RABBITMQ_PORT: 5672
+    networks:
+      - smart-lend-platform-network
+    restart: unless-stopped
+    depends_on:
+      mysql-customer:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f ${EUREKA_SERVER_URL}/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # PredictionService (ML Prediction Management)
+  predictionservice:
+    build:
+      context: .
+      dockerfile: ./predictionservice/Dockerfile
+    container_name: predictionservice
+    ports:
+      - "8008:8008"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: ${PREDICTION_DB_URL}
+      SPRING_DATASOURCE_USERNAME: ${PREDICTION_DB_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${PREDICTION_DB_PASSWORD}
+      EUREKA_SERVER_URL: ${EUREKA_SERVER_URL}
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
       
-  #     # RabbitMQ Queue Configuration for PredictionService
-  #     RABBITMQ_EXCHANGE_CUSTOMER_PROFILE_REQUESTED: customer.profile.exchange
-  #     RABBITMQ_QUEUE_CUSTOMER_PROFILE_REQUESTED: customer.profile.request
-  #     RABBITMQ_ROUTING_KEY_CUSTOMER_PROFILE_REQUESTED: customer.profile.requested
-
-  #     RABBITMQ_EXCHANGE_CUSTOMER_PROFILE_ENRICHED: customer.profile.exchange
-  #     RABBITMQ_QUEUE_CUSTOMER_PROFILE_ENRICHED: customer.profile.enriched
-  #     RABBITMQ_ROUTING_KEY_CUSTOMER_PROFILE_ENRICHED: customer.profile.enriched
-
-  #     RABBITMQ_EXCHANGE_MODEL_PREDICT_REQUESTED: model.predict.exchange
-  #     RABBITMQ_QUEUE_MODEL_PREDICT_REQUESTED: model.predict.requested
-  #     RABBITMQ_ROUTING_KEY_MODEL_PREDICT_REQUESTED: model.predict.requested
-
-  #     RABBITMQ_EXCHANGE_MODEL_PREDICT_COMPLETED: model.predict.exchange
-  #     RABBITMQ_QUEUE_MODEL_PREDICT_COMPLETED: model.predict.completed
-  #     RABBITMQ_ROUTING_KEY_MODEL_PREDICT_COMPLETED: model.predict.completed
-
-  #     RABBITMQ_EXCHANGE_PREDICTION_COMPLETED: prediction.exchange
-  #     RABBITMQ_QUEUE_PREDICTION_COMPLETED_CUSTOMER: prediction.completed-customer
-  #     RABBITMQ_ROUTING_KEY_PREDICTION_COMPLETED_CUSTOMER: prediction.completed-customer
-  #     RABBITMQ_QUEUE_PREDICTION_COMPLETED_ANALYTICS: prediction.completed-analytics
-  #     RABBITMQ_ROUTING_KEY_PREDICTION_COMPLETED_ANALYTICS: prediction.completed-analytics
+      # RabbitMQ Queue Configuration for PredictionService
+      RABBITMQ_EXCHANGE_MODEL_PREDICT: model.predict.exchange
+      RABBITMQ_QUEUE_MODEL_PREDICT_REQUESTED: model.predict.requested
+      RABBITMQ_ROUTING_KEY_MODEL_PREDICT_REQUESTED: model.predict.requested
+      RABBITMQ_QUEUE_MODEL_PREDICT_COMPLETED: model.predict.completed
+      RABBITMQ_ROUTING_KEY_MODEL_PREDICT_COMPLETED: model.predict.completed
       
-  #     # CurrencyService Configuration
-  #     CURRENCY_SERVICE_URL: ${CURRENCY_SERVICE_URL}
-  #   networks:
-  #     - predict-app-network
-  #   restart: unless-stopped
-  #   depends_on:
-  #     mysql-prediction:
-  #       condition: service_healthy
-  #     rabbitmq:
-  #       condition: service_healthy
-  #     eureka-server:
-  #       condition: service_started
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "curl -f ${EUREKA_SERVER_URL}/actuator/health || exit 1"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 5
-  #     start_period: 60s
+      # CurrencyService Configuration
+      CURRENCY_SERVICE_URL: ${CURRENCY_SERVICE_URL}
+      CUSTOMER_SERVICE_URL: ${CUSTOMER_SERVICE_URL}
+    networks:
+      - smart-lend-platform-network
+    restart: unless-stopped
+    depends_on:
+      mysql-prediction:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f ${EUREKA_SERVER_URL}/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
-  # # ML Model Service (Python FastAPI Service)
-  # ml-model-service:
-  #   build:
-  #     context: ./ml-model-service
-  #     dockerfile: Dockerfile
-  #   container_name: ml-model-service
-  #   ports:
-  #     - "8009:8009"
-  #   environment:
-  #     # RabbitMQ Configuration
-  #     RABBITMQ_HOST: rabbitmq
-  #     RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
-  #     RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
-  #     RABBITMQ_VIRTUAL_HOST: ${RABBITMQ_VIRTUAL_HOST}
-  #     # RabbitMQ Queue Configuration (align with predictionservice)
-  #     MODEL_PREDICT_REQUESTED_EXCHANGE: model.predict.exchange
-  #     MODEL_PREDICT_REQUESTED_QUEUE: model.predict.requested
-  #     MODEL_PREDICT_REQUESTED_ROUTING_KEY: model.predict.requested
-  #     MODEL_PREDICT_COMPLETED_EXCHANGE: model.predict.exchange
-  #     MODEL_PREDICT_COMPLETED_QUEUE: model.predict.completed
-  #     MODEL_PREDICT_COMPLETED_ROUTING_KEY: model.predict.completed
-  #     # Model Configuration
-  #     MODEL_PATH: models/knn_model.joblib
-  #     SCALER_PATH: models/scaler.joblib
-  #     # Redis Configuration (optional, for caching)
-  #     REDIS_HOST: redis
-  #     # Application Configuration
-  #     HOST: 0.0.0.0
-  #     PORT: 8009
-  #     DEBUG: "false"
-  #     # Eureka Service Discovery Configuration
-  #     EUREKA_SERVER_URL: ${EUREKA_SERVER_URL}
-  #     EUREKA_ENABLED: "true"
-  #     EUREKA_APP_NAME: ml-model-service
-  #     EUREKA_INSTANCE_HOST: ml-model-service
-  #     EUREKA_INSTANCE_PORT: 8009
-  #     EUREKA_LEASE_RENEWAL_INTERVAL: 30
-  #     EUREKA_LEASE_DURATION: 90
-  #   networks:
-  #     - predict-app-network
-  #   restart: unless-stopped
-  #   depends_on:
-  #     rabbitmq:
-  #       condition: service_healthy
-  #     redis:
-  #       condition: service_started
-  #     eureka-server:
-  #       condition: service_started
+  # ML Model Service (Python Flask Service)
+  ml-model-service:
+    build:
+      context: ./ml-model
+      dockerfile: Dockerfile
+    container_name: ml-model-service
+    ports:
+      - "5000:5000"
+    environment:
+      # RabbitMQ Configuration
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      RABBITMQ_VIRTUAL_HOST: ${RABBITMQ_VIRTUAL_HOST}
+      # RabbitMQ Queue Configuration (align with predictionservice)
+      MODEL_PREDICT_REQUESTED_EXCHANGE: model.predict.exchange
+      MODEL_PREDICT_REQUESTED_QUEUE: model.predict.requested
+      MODEL_PREDICT_REQUESTED_ROUTING_KEY: model.predict.requested
+      MODEL_PREDICT_COMPLETED_EXCHANGE: model.predict.exchange
+      MODEL_PREDICT_COMPLETED_QUEUE: model.predict.completed
+      MODEL_PREDICT_COMPLETED_ROUTING_KEY: model.predict.completed
+      # Model Configuration
+      MODEL_PATH: model/final_lgbm_model.joblib
+      OHE_ENCODER_PATH: model/ohe_encoder.joblib
+      SCALER_PATH: model/scaler_normal.joblib
+      MERGE_OHE_COLUMNS_PATH: model/merge_ohe_col.joblib
+      TRAINING_COLUMNS_PATH: model/training_columns.joblib
+      # Application Configuration
+      HOST: 0.0.0.0
+      PORT: 5000
+      DEBUG: "false"
+      # Model Metadata
+      MODEL_VERSION: ${MODEL_VERSION}
+    networks:
+      - smart-lend-platform-network
+    restart: unless-stopped
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:5000/health').raise_for_status()\""]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
 
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "curl -f http://localhost:8009/health || exit 1"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 5
-  #     start_period: 20s
-
-  # # CurrencyService (Currency Exchange Rate Management)
-  # currencyservice:
-  #   build:
-  #     context: ./currencyservice
-  #     dockerfile: Dockerfile
-  #   container_name: currencyservice
-  #   ports:
-  #     - "8011:8011"
-  #   environment:
-  #     SPRING_PROFILES_ACTIVE: docker
-  #     EUREKA_SERVER_URL: ${EUREKA_SERVER_URL}
-  #     SPRING_DATA_REDIS_HOST: redis
-  #     SPRING_DATA_REDIS_PORT: 6379
-  #     CURRENCY_API_URL: ${CURRENCY_API_URL}
-  #     CURRENCY_FALLBACK_RATE: ${CURRENCY_FALLBACK_RATE}
-  #     CURRENCY_UPDATE_INTERVAL: ${CURRENCY_UPDATE_INTERVAL}
-  #   networks:
-  #     - predict-app-network
-  #   restart: unless-stopped
-  #   depends_on:
-  #     redis:
-  #       condition: service_healthy
-  #     eureka-server:
-  #       condition: service_started
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "curl -f http://localhost:8011/actuator/health || exit 1"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 5
-  #     start_period: 60s
+  # CurrencyService (Currency Exchange Rate Management)
+  currencyservice:
+    build:
+      context: .
+      dockerfile: ./currencyservice/Dockerfile
+    container_name: currencyservice
+    ports:
+      - "8011:8011"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      EUREKA_SERVER_URL: ${EUREKA_SERVER_URL}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      CURRENCY_API_URL: ${CURRENCY_API_URL}
+      CURRENCY_FALLBACK_RATE: ${CURRENCY_FALLBACK_RATE}
+      CURRENCY_UPDATE_INTERVAL: ${CURRENCY_UPDATE_INTERVAL}
+    networks:
+      - smart-lend-platform-network
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8011/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   # # AnalysticService (Analytics Management)
   # analysticservice:
@@ -445,7 +413,7 @@ services:
   #     RABBITMQ_QUEUE_PREDICTION_COMPLETED_ANALYTICS: prediction.completed-analytics
   #     RABBITMQ_ROUTING_KEY_PREDICTION_COMPLETED_ANALYTICS: prediction.completed-analytics
   #   networks:
-  #     - predict-app-network
+  #     - smart-lend-platform-network
   #   restart: unless-stopped
   #   depends_on:
   #     mysql-analystic:
@@ -464,13 +432,12 @@ services:
 volumes:
   # Database volumes
   mysql_identity_data:
-  # mysql_prediction_data:
-  # mysql_user_data:
-  # mysql_auth_data:
+  mysql_customer_data:
+  mysql_prediction_data:
   # mysql_analystic_data:
   
-  # # Message broker volume
-  # rabbitmq_data:
+  # Message broker volume
+  rabbitmq_data:
   
   # Cache volume
   redis_data:

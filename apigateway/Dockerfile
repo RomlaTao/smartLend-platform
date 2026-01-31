@@ -1,5 +1,5 @@
 # Multi-stage build for API Gateway with optimized caching
-FROM maven:3.9.6-eclipse-temurin-21-alpine as builder
+FROM maven:3.9.6-eclipse-temurin-21-alpine AS builder
 
 # We expect build context to be the project root (smartLend-platform)
 WORKDIR /app
@@ -33,8 +33,8 @@ USER spring:spring
 # Set working directory
 WORKDIR /app
 
-# Copy the built jar from builder stage
-COPY --from=builder /app/apigateway/target/apigateway-0.0.1-SNAPSHOT.jar app.jar
+# Copy the built jar from builder stage (version comes from parent)
+COPY --from=builder /app/apigateway/target/*.jar app.jar
 
 # Expose port
 EXPOSE 8080

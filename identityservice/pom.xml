@@ -3,17 +3,15 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<parent>
-		<groupId>com.smartlend</groupId>
-		<artifactId>smartlend-platform</artifactId>
+		<groupId>com.smart_lend_platform</groupId>
+		<artifactId>smart_lend_platform</artifactId>
 		<version>1.0.0</version>
 		<relativePath>../pom.xml</relativePath>
 	</parent>
 
-	<groupId>com.smart-lend-platform</groupId>
 	<artifactId>identityservice</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
 	<name>identityservice</name>
-	<description>Demo project for Spring Boot</description>
+	<description>Identity service for Smart Lend Platform</description>
 
 	<dependencies>
 		<!-- Spring Boot core dependencies -->
@@ -116,18 +114,13 @@
 				<artifactId>spring-boot-maven-plugin</artifactId>
 				<configuration>
 					<mainClass>com.smart_lend_platform.identityservice.IdentityserviceApplication</mainClass>
-					<!-- Enable layered jars for better Docker caching -->
-					<layers>
-						<enabled>true</enabled>
-					</layers>
+					<excludes>
+						<exclude>
+							<groupId>org.projectlombok</groupId>
+							<artifactId>lombok</artifactId>
+						</exclude>
+					</excludes>
 				</configuration>
-				<executions>
-					<execution>
-						<goals>
-							<goal>repackage</goal>
-						</goals>
-					</execution>
-				</executions>
 			</plugin>
 		</plugins>
 	</build>

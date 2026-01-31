@@ -3,45 +3,15 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<parent>
-		<groupId>com.smartlend</groupId>
-		<artifactId>smartlend-platform</artifactId>
+		<groupId>com.smart_lend_platform</groupId>
+		<artifactId>smart_lend_platform</artifactId>
 		<version>1.0.0</version>
 		<relativePath>../pom.xml</relativePath>
 	</parent>
-	<groupId>com.smart-lend-platform</groupId>
+	
 	<artifactId>eurekaserver</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
 	<name>eurekaserver</name>
 	<description>Eureka Server for microservices discovery</description>
-	<url/>
-	<licenses>
-		<license/>
-	</licenses>
-	<developers>
-		<developer/>
-	</developers>
-	<scm>
-		<connection/>
-		<developerConnection/>
-		<tag/>
-		<url/>
-	</scm>
-	<properties>
-		<java.version>21</java.version>
-		<spring.cloud.version>2023.0.3</spring.cloud.version>
-	</properties>
-
-	<dependencyManagement>
-		<dependencies>
-			<dependency>
-				<groupId>org.springframework.cloud</groupId>
-				<artifactId>spring-cloud-dependencies</artifactId>
-				<version>${spring.cloud.version}</version>
-				<type>pom</type>
-				<scope>import</scope>
-			</dependency>
-		</dependencies>
-	</dependencyManagement>
 
 	<dependencies>
 		<!-- Eureka Server: Service Registry và Discovery Server -->
@@ -77,18 +47,7 @@
 				<artifactId>spring-boot-maven-plugin</artifactId>
 				<configuration>
 					<mainClass>com.smart_lend_platform.eurekaserver.EurekaServerApplication</mainClass>
-					<!-- Enable layered jars for better Docker caching -->
-					<layers>
-						<enabled>true</enabled>
-					</layers>
 				</configuration>
-				<executions>
-					<execution>
-						<goals>
-							<goal>repackage</goal>
-						</goals>
-					</execution>
-				</executions>
 			</plugin>
 		</plugins>
 	</build>

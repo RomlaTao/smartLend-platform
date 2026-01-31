@@ -34,7 +34,8 @@ USER spring:spring
 WORKDIR /app
 
 # Copy the built jar from builder stage
-COPY --from=builder /app/eurekaserver/target/eurekaserver-0.0.1-SNAPSHOT.jar app.jar
+# NOTE: module version is inherited from parent (currently 1.0.0)
+COPY --from=builder /app/eurekaserver/target/eurekaserver-1.0.0.jar app.jar
 
 # Expose port
 EXPOSE 8761
