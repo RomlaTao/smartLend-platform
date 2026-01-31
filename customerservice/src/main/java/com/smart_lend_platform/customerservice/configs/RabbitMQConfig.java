@@ -11,37 +11,6 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class RabbitMQConfig {
-
-    @Value("${rabbitmq.exchange.customer-profile-requested}")
-    private String customerProfileRequestedExchangeName;
-
-    @Value("${rabbitmq.queue.customer-profile-requested}")
-    private String customerProfileRequestedQueueName;
-
-    @Value("${rabbitmq.routing-key.customer-profile-requested}")
-    private String customerProfileRequestedRoutingKey;
-
-    // Exchange Customer Profile Requested
-    @Bean
-    public TopicExchange customerProfileRequestedExchange() {
-        return new TopicExchange(customerProfileRequestedExchangeName);
-    }
-
-    // Queue Customer Profile Requested
-    @Bean
-    public Queue customerProfileRequestedQueue() {
-        return QueueBuilder.durable(customerProfileRequestedQueueName).build();
-    }
-
-    // Bindings
-    @Bean
-    public Binding customerProfileRequestedBinding() {
-        return BindingBuilder
-                .bind(customerProfileRequestedQueue())
-                .to(customerProfileRequestedExchange())
-                .with(customerProfileRequestedRoutingKey);
-    }
-
     // Message Converter
     @Bean
     public Jackson2JsonMessageConverter messageConverter() {

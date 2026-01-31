@@ -35,13 +35,13 @@ public class CustomerProfileController {
 
     @GetMapping("/slug/{customerSlug}")
     public ResponseEntity<CustomerProfileResponseDto> getCustomerBySlug(
-            @PathVariable String customerSlug) {
+            @PathVariable("customerSlug") String customerSlug) {
         return ResponseEntity.ok(customerProfileService.getProfileByCustomerSlug(customerSlug));
     }
 
-    @GetMapping("/{customerId}")
+    @GetMapping("/id/{customerId}")
     public ResponseEntity<CustomerProfileResponseDto> getCustomer(
-            @PathVariable UUID customerId) {
+            @PathVariable("customerId") UUID customerId) {
         return ResponseEntity.ok(customerProfileService.getProfileByCustomerId(customerId));
     }
 
@@ -50,9 +50,9 @@ public class CustomerProfileController {
         return ResponseEntity.ok(customerProfileService.getAllCustomers(pageable));
     }
 
-    @PutMapping("/{customerId}")
+    @PutMapping("/id/{customerId}")
     public ResponseEntity<CustomerProfileResponseDto> updateCustomer(
-            @PathVariable UUID customerId,
+            @PathVariable("customerId") UUID customerId,
             @RequestBody CustomerProfileRequestDto request) {
         return ResponseEntity.ok(customerProfileService.updateCustomer(customerId, request));
     }

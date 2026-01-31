@@ -31,7 +31,6 @@ public class CustomerProfileResponseDto {
     private Double loanPercentIncome;
     private String cbPersonDefaultOnFile;
     private Integer cbPersonCredHistLength;
-    private UUID staffId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
