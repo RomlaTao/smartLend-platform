@@ -31,6 +31,18 @@ public class RabbitMQConfig {
     @Value("${rabbitmq.routing-key.model-predict-completed}")
     private String modelPredictCompletedRoutingKey;
 
+    @Value("${rabbitmq.exchange.loan-prediction}")
+    private String loanPredictionExchangeName;
+
+    @Value("${rabbitmq.queue.loan-prediction-requested}")
+    private String loanPredictionRequestedQueueName;
+
+    @Value("${rabbitmq.routing-key.loan-prediction-requested}")
+    private String loanPredictionRequestedRoutingKey;
+
+    @Value("${rabbitmq.routing-key.loan-prediction-completed}")
+    private String loanPredictionCompletedRoutingKey;
+
     // Exchange Model Predict Requested
     @Bean
     public TopicExchange modelPredictExchange() {
@@ -65,6 +77,25 @@ public class RabbitMQConfig {
                 .bind(modelPredictCompletedQueue())
                 .to(modelPredictExchange())
                 .with(modelPredictCompletedRoutingKey);
+    }
+
+    // Exchange + Queue Loan Prediction Requested (loan management gửi request)
+    @Bean
+    public TopicExchange loanPredictionExchange() {
+        return new TopicExchange(loanPredictionExchangeName);
+    }
+
+    @Bean
+    public Queue loanPredictionRequestedQueue() {
+        return QueueBuilder.durable(loanPredictionRequestedQueueName).build();
+    }
+
+    @Bean
+    public Binding loanPredictionRequestedBinding() {
+        return BindingBuilder
+                .bind(loanPredictionRequestedQueue())
+                .to(loanPredictionExchange())
+                .with(loanPredictionRequestedRoutingKey);
     }
     
     // Message Converter

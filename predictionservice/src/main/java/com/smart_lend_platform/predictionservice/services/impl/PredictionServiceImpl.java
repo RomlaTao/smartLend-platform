@@ -2,6 +2,7 @@ package com.smart_lend_platform.predictionservice.services.impl;
 
 import com.smart_lend_platform.predictionservice.dtos.PredictionRequestDto;
 import com.smart_lend_platform.predictionservice.dtos.PredictionResponseDto;
+import com.smart_lend_platform.predictionservice.dtos.RegisterPredictionFromLoanRequestDto;
 import com.smart_lend_platform.predictionservice.enums.PredictionStatus;
 import com.smart_lend_platform.predictionservice.repositories.PredictionRepository;
 import com.smart_lend_platform.predictionservice.services.PredictionService;
@@ -40,38 +41,21 @@ public class PredictionServiceImpl implements PredictionService {
                 throw new RuntimeException("Fail to get customer profile");
             }
 
+            ModelPredictRequestedEventDto.ModelInputDto modelInput = buildModelInputFromProfileAndRequest(customerProfile, request);
+
             UUID predictionId = UUID.randomUUID();
             Prediction prediction = Prediction.builder()
                 .predictionId(predictionId)
                 .customerId(request.getCustomerId())
                 .employeeId(staffId)
                 .status(PredictionStatus.PENDING)
-                .inputData(objectMapper.writeValueAsString(customerProfile))
+                .inputData(objectMapper.writeValueAsString(modelInput))
                 .build();
             prediction.onCreate();
             predictionRepository.save(prediction);
 
             // Publish event to ML model via RabbitMQ (async processing)
             try {
-                ModelPredictRequestedEventDto.ModelInputDto modelInput = ModelPredictRequestedEventDto.ModelInputDto.builder()
-                    .customerProfileId(customerProfile.getCustomerProfileId())
-                    .customerSlug(customerProfile.getCustomerSlug())
-                    .fullName(customerProfile.getFullName())
-                    .email(customerProfile.getEmail())
-                    .personAge(customerProfile.getPersonAge())
-                    .personIncome(customerProfile.getPersonIncome())
-                    .personHomeOwnership(customerProfile.getPersonHomeOwnership())
-                    .personEmpLength(customerProfile.getPersonEmpLength())
-                    .loanIntent(customerProfile.getLoanIntent())
-                    .loanGrade(customerProfile.getLoanGrade())
-                    .loanAmnt(customerProfile.getLoanAmnt())
-                    .loanIntRate(customerProfile.getLoanIntRate())
-                    .loanStatus(customerProfile.getLoanStatus())
-                    .loanPercentIncome(customerProfile.getLoanPercentIncome())
-                    .cbPersonDefaultOnFile(customerProfile.getCbPersonDefaultOnFile())
-                    .cbPersonCredHistLength(customerProfile.getCbPersonCredHistLength())
-                    .build();
-
                 ModelPredictRequestedEventDto event = ModelPredictRequestedEventDto.builder()
                     .predictionId(predictionId)
                     .customerId(request.getCustomerId())
@@ -89,6 +73,45 @@ public class PredictionServiceImpl implements PredictionService {
         } catch (Exception e) {
             log.error("Error creating prediction: {}", e.getMessage());
             throw new RuntimeException("Error creating prediction: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public PredictionResponseDto registerPredictionFromLoan(RegisterPredictionFromLoanRequestDto request) {
+        if (request == null || request.getPredictionId() == null
+                || request.getCustomerId() == null || request.getStaffId() == null) {
+            throw new IllegalArgumentException("predictionId, customerId and staffId are required");
+        }
+        if (request.getCustomerInfo() == null) {
+            throw new IllegalArgumentException("customerInfo (prediction snapshot) is required for register-from-loan");
+        }
+        if (predictionRepository.findByPredictionId(request.getPredictionId()) != null) {
+            throw new IllegalArgumentException("Prediction already exists for predictionId: " + request.getPredictionId());
+        }
+
+        try {
+            RegisterPredictionFromLoanRequestDto.CustomerInfo customerInfo = request.getCustomerInfo();
+            String inputDataJson;
+            try {
+                inputDataJson = objectMapper.writeValueAsString(customerInfo);
+            } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+                throw new RuntimeException("Failed to serialize customerInfo for prediction inputData", e);
+            }
+            Prediction prediction = Prediction.builder()
+                    .predictionId(request.getPredictionId())
+                    .customerId(request.getCustomerId())
+                    .employeeId(request.getStaffId())
+                    .status(PredictionStatus.PENDING)
+                    .inputData(inputDataJson)
+                    .build();
+            prediction.onCreate();
+            predictionRepository.save(prediction);
+            log.info("[PREDICTION] Registered PENDING prediction from loan - predictionId: {}, customerId: {}",
+                    request.getPredictionId(), request.getCustomerId());
+            return mapToResponseDto(prediction);
+        } catch (Exception e) {
+            log.error("Error registering prediction from loan: {}", e.getMessage());
+            throw new RuntimeException("Error registering prediction from loan: " + e.getMessage(), e);
         }
     }
 
@@ -142,26 +165,68 @@ public class PredictionServiceImpl implements PredictionService {
 
     @Override
     public PredictionResponseDto updatePredictionStatus(UUID predictionId, String status) {
-        Prediction prediction = predictionRepository.findById(predictionId)
-            .orElseThrow(() -> new RuntimeException("Prediction not found with id: " + predictionId));
-        prediction.setStatus(PredictionStatus.valueOf(status));
-        predictionRepository.save(prediction);
-        return mapToResponseDto(prediction);
+        try {
+            Prediction prediction = predictionRepository.findById(predictionId)
+                .orElseThrow(() -> new RuntimeException("Prediction not found with id: " + predictionId));
+            prediction.setStatus(PredictionStatus.valueOf(status));
+            predictionRepository.save(prediction);
+            return mapToResponseDto(prediction);
+        } catch (Exception e) {
+            log.error("Error updating prediction status: {}", e.getMessage());
+            throw new RuntimeException("Error updating prediction status: " + e.getMessage(), e);
+        }
     }
 
     @Override
     public void setPredictionResult(UUID predictionId, Boolean label, Double probability) {
-        Prediction prediction = predictionRepository.findByPredictionId(predictionId);
-        prediction.setPredictionResult(label);
-        prediction.setConfidence(probability);
-        prediction.setStatus(PredictionStatus.COMPLETED);
-        predictionRepository.save(prediction);
+        try {
+            Prediction prediction = predictionRepository.findByPredictionId(predictionId);
+            if (prediction == null) {
+                // Luồng loan: request từ LoanManagementService, PredictionService chưa có bản ghi → bỏ qua
+                log.debug("[PREDICTION] No Prediction record for predictionId {} (likely from loan flow), skipping update", predictionId);
+                return;
+            }
+            prediction.setPredictionResult(label);
+            prediction.setConfidence(probability);
+            prediction.setStatus(PredictionStatus.COMPLETED);
+            predictionRepository.save(prediction);
+        } catch (Exception e) {
+            log.error("Error setting prediction result: {}", e.getMessage());
+            throw new RuntimeException("Error setting prediction result: " + e.getMessage(), e);
+        }
     }
 
     private void validateCreatePredictionRequest(PredictionRequestDto request) {
         if (request.getCustomerId() == null) {
             throw new RuntimeException("Customer ID is required");
         }
+    }
+
+    /**
+     * Đóng gói snapshot cần cho dự đoán từ profile (Customer) và request (loan params).
+     * Một nguồn duy nhất để build model input cho luồng standalone.
+     */
+    private ModelPredictRequestedEventDto.ModelInputDto buildModelInputFromProfileAndRequest(
+            CustomerProfileResponseDto profile,
+            PredictionRequestDto request) {
+        return ModelPredictRequestedEventDto.ModelInputDto.builder()
+                .customerProfileId(profile.getCustomerProfileId())
+                .customerSlug(profile.getCustomerSlug())
+                .fullName(profile.getFullName())
+                .email(profile.getEmail())
+                .personAge(profile.getPersonAge())
+                .personIncome(profile.getPersonIncome())
+                .personHomeOwnership(profile.getPersonHomeOwnership() != null ? profile.getPersonHomeOwnership() : null)
+                .personEmpLength(profile.getPersonEmpLength())
+                .loanIntent(request.getLoanIntent() != null ? request.getLoanIntent().name() : null)
+                .loanGrade(profile.getLoanGrade())
+                .loanAmnt(request.getLoanAmnt())
+                .loanIntRate(request.getLoanIntRate())
+                .loanStatus(request.getLoanStatus() != null ? request.getLoanStatus().name() : null)
+                .loanPercentIncome(request.getLoanPercentIncome())
+                .cbPersonDefaultOnFile(profile.getCbPersonDefaultOnFile())
+                .cbPersonCredHistLength(profile.getCbPersonCredHistLength())
+                .build();
     }
 
     private PredictionResponseDto mapToResponseDto(Prediction prediction) {

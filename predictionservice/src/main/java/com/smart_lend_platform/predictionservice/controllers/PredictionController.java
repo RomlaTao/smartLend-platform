@@ -2,6 +2,7 @@ package com.smart_lend_platform.predictionservice.controllers;
 
 import com.smart_lend_platform.predictionservice.dtos.PredictionRequestDto;
 import com.smart_lend_platform.predictionservice.dtos.PredictionResponseDto;
+import com.smart_lend_platform.predictionservice.dtos.RegisterPredictionFromLoanRequestDto;
 import com.smart_lend_platform.predictionservice.services.PredictionService;
 
 import jakarta.validation.Valid;
@@ -26,6 +27,14 @@ public class PredictionController {
             @Valid @RequestBody PredictionRequestDto request,
             @RequestHeader("X-User-Id") UUID staffId) {
         return ResponseEntity.ok(predictionService.createPrediction(request, staffId));
+    }
+
+    /** Đăng ký prediction PENDING từ luồng loan (LoanManagementService gọi trước khi publish tới ml-model). */
+    @PostMapping("/register-from-loan")
+    public ResponseEntity<PredictionResponseDto> registerPredictionFromLoan(
+            @Valid @RequestBody RegisterPredictionFromLoanRequestDto request,
+            @RequestHeader("X-User-Id") UUID staffId) {
+        return ResponseEntity.ok(predictionService.registerPredictionFromLoan(request));
     }
 
     @GetMapping("/id/{predictionId}")

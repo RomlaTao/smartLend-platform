@@ -1,8 +1,8 @@
 package com.smart_lend_platform.predictionservice.listeners.impl;
 
 import com.smart_lend_platform.predictionservice.dtos.events.ModelPredictCompletedEventDto;
-import com.smart_lend_platform.predictionservice.services.PredictionService;
 import com.smart_lend_platform.predictionservice.listeners.ModelListener;
+import com.smart_lend_platform.predictionservice.services.PredictionService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -52,6 +52,8 @@ public class ModelListenerImpl implements ModelListener {
                     predictionId, label.toString(), probability);
 
             predictionService.setPredictionResult(event.getPredictionId(), label, probability);
+
+            // Luồng loan: ml-model gửi kết quả trực tiếp tới LoanManagementService (queue loan.prediction.completed). Không forward từ đây.
 
             long processingTime = System.currentTimeMillis() - startTime;
 
