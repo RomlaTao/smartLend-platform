@@ -24,6 +24,9 @@ class Config:
     MODEL_PREDICT_COMPLETED_EXCHANGE = os.getenv('MODEL_PREDICT_COMPLETED_EXCHANGE', 'model.predict.exchange')
     MODEL_PREDICT_COMPLETED_QUEUE = os.getenv('MODEL_PREDICT_COMPLETED_QUEUE', 'model.predict.completed')
     MODEL_PREDICT_COMPLETED_ROUTING_KEY = os.getenv('MODEL_PREDICT_COMPLETED_ROUTING_KEY', 'model.predict.completed')
+
+    # Loan flow: khi request có loanApplicationId, publish thêm tới queue này để LoanManagementService nhận
+    LOAN_PREDICTION_COMPLETED_ROUTING_KEY = os.getenv('LOAN_PREDICTION_COMPLETED_ROUTING_KEY', 'loan.prediction.completed')
     
     # Model Configuration
     MODEL_PATH = os.getenv('MODEL_PATH', 'model/final_lgbm_model.joblib')

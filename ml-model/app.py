@@ -64,33 +64,29 @@ def initialize_services():
 
 def process_prediction_request(message: dict) -> dict:
     """
-    Process prediction request from RabbitMQ
-    
-    Args:
-        message: Dictionary containing prediction request
-        
-    Returns:
-        Dictionary containing prediction result
+    Process prediction request from RabbitMQ.
+    Request may come from PredictionService (no loanApplicationId) or LoanManagementService (with loanApplicationId).
     """
     try:
         start_time = time.time()
-        
+
         prediction_id = message.get('predictionId')
         customer_id = message.get('customerId')
         input_data = message.get('input')
-        
-        logger.info(f"Processing prediction request - PredictionId: {prediction_id}")
-        
+        loan_application_id = message.get('loanApplicationId')  # optional: present when from LoanManagementService
+
+        logger.info(f"Processing prediction request - PredictionId: {prediction_id}, loanApplicationId: {loan_application_id}")
+
         if not input_data:
             raise ValueError("Input data is missing")
-        
+
         # Make prediction
         label, probability = model_service.predict(input_data)
-        
+
         # Calculate inference time
         inference_time_ms = int((time.time() - start_time) * 1000)
-        
-        # Prepare response
+
+        # Prepare response (same format for both PredictionService and LoanManagementService)
         response = {
             'predictionId': prediction_id,
             'customerId': customer_id,
@@ -102,13 +98,15 @@ def process_prediction_request(message: dict) -> dict:
             },
             'predictedAt': datetime.now().isoformat()
         }
-        
+        if loan_application_id is not None:
+            response['loanApplicationId'] = loan_application_id
+
         logger.info(f"Prediction completed - PredictionId: {prediction_id}, "
-                   f"Label: {label}, Probability: {probability:.4f}, "
-                   f"Time: {inference_time_ms}ms")
-        
+                    f"Label: {label}, Probability: {probability:.4f}, "
+                    f"Time: {inference_time_ms}ms, loanFlow: {loan_application_id is not None}")
+
         return response
-        
+
     except Exception as e:
         logger.error(f"Error processing prediction request: {e}")
         raise

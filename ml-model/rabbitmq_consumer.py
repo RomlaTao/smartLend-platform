@@ -142,26 +142,39 @@ class RabbitMQConsumer:
 
     def publish_prediction_result(self, result: dict):
         """
-        Publish prediction result to RabbitMQ
-        
-        Args:
-            result: Dictionary containing prediction result
+        Publish prediction result to RabbitMQ.
+        - Always publish to model.predict.completed (PredictionService).
+        - If result contains loanApplicationId (request from LoanManagementService), also publish to
+          loan.prediction.completed (LoanManagementService).
         """
         try:
             message = json.dumps(result, default=str)
-            
-            self.channel.basic_publish(
-                exchange=self.config.MODEL_PREDICT_COMPLETED_EXCHANGE,
-                routing_key=self.config.MODEL_PREDICT_COMPLETED_ROUTING_KEY,
-                body=message.encode('utf-8'),
-                properties=pika.BasicProperties(
-                    delivery_mode=2,  # Persistent message
-                    content_type='application/json'
-                )
+            body = message.encode('utf-8')
+            properties = pika.BasicProperties(
+                delivery_mode=2,
+                content_type='application/json'
             )
-            
-            logger.info(f"Published prediction result: {result.get('predictionId')}")
-            
+            exchange = self.config.MODEL_PREDICT_COMPLETED_EXCHANGE
+
+            # Always: PredictionService
+            self.channel.basic_publish(
+                exchange=exchange,
+                routing_key=self.config.MODEL_PREDICT_COMPLETED_ROUTING_KEY,
+                body=body,
+                properties=properties
+            )
+            logger.info(f"Published prediction result to {self.config.MODEL_PREDICT_COMPLETED_ROUTING_KEY}: {result.get('predictionId')}")
+
+            # Loan flow: also send to LoanManagementService
+            if result.get('loanApplicationId') is not None:
+                self.channel.basic_publish(
+                    exchange=exchange,
+                    routing_key=self.config.LOAN_PREDICTION_COMPLETED_ROUTING_KEY,
+                    body=body,
+                    properties=properties
+                )
+                logger.info(f"Published prediction result to {self.config.LOAN_PREDICTION_COMPLETED_ROUTING_KEY}: loanApplicationId={result.get('loanApplicationId')}")
+
         except Exception as e:
             logger.error(f"Failed to publish result: {e}")
             raise
