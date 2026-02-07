@@ -40,11 +40,7 @@ public class CustomerProfileServiceImpl implements CustomerProfileService {
                     .personIncome(request.getPersonIncome())
                     .personHomeOwnership(request.getPersonHomeOwnership())
                     .personEmpLength(request.getPersonEmpLength())
-                    .loanIntent(request.getLoanIntent())
                     .loanGrade(request.getLoanGrade())
-                    .loanAmnt(request.getLoanAmnt())
-                    .loanIntRate(request.getLoanIntRate())
-                    .loanPercentIncome(request.getLoanPercentIncome())
                     .cbPersonDefaultOnFile(request.getCbPersonDefaultOnFile())
                     .cbPersonCredHistLength(request.getCbPersonCredHistLength())
                     .createdAt(LocalDateTime.now())
@@ -134,11 +130,7 @@ public class CustomerProfileServiceImpl implements CustomerProfileService {
             customerProfile.setPersonIncome(request.getPersonIncome());
             customerProfile.setPersonHomeOwnership(request.getPersonHomeOwnership());
             customerProfile.setPersonEmpLength(request.getPersonEmpLength());
-            customerProfile.setLoanIntent(request.getLoanIntent());
             customerProfile.setLoanGrade(request.getLoanGrade());
-            customerProfile.setLoanAmnt(request.getLoanAmnt());
-            customerProfile.setLoanIntRate(request.getLoanIntRate());
-            customerProfile.setLoanPercentIncome(request.getLoanPercentIncome());
             customerProfile.setCbPersonDefaultOnFile(request.getCbPersonDefaultOnFile());
             customerProfile.setCbPersonCredHistLength(request.getCbPersonCredHistLength());
             customerProfile.setUpdatedAt(LocalDateTime.now());
@@ -178,26 +170,10 @@ public class CustomerProfileServiceImpl implements CustomerProfileService {
             throw new RuntimeException("Person employment length must be greater than 0");
         }
         
-        if (request.getLoanIntent() == null) {
-            throw new RuntimeException("Loan intent is required");
-        }
-
         if (request.getLoanGrade() == null) {
             throw new RuntimeException("Loan grade is required");
         }
         
-        if (request.getLoanAmnt() == null || request.getLoanAmnt() < 0) {
-            throw new RuntimeException("Loan amount must be greater than 0");
-        }
-
-        if (request.getLoanIntRate() == null || request.getLoanIntRate() < 0) {
-            throw new RuntimeException("Loan interest rate must be greater than 0");
-        }
-        
-        if (request.getLoanPercentIncome() == null || request.getLoanPercentIncome() < 0) {
-            throw new RuntimeException("Loan percent income must be greater than 0");
-        }
-
         if (request.getCbPersonDefaultOnFile() == null) {
             throw new RuntimeException("CB person default on file is required");
         }
@@ -231,24 +207,8 @@ public class CustomerProfileServiceImpl implements CustomerProfileService {
             throw new RuntimeException("Person employment length must be greater than 0");
         }
 
-        if (request.getLoanIntent() == null) {
-            throw new RuntimeException("Loan intent is required");
-        }
-
         if (request.getLoanGrade() == null) {
             throw new RuntimeException("Loan grade is required");
-        }
-
-        if (request.getLoanAmnt() == null || request.getLoanAmnt() < 0) {
-            throw new RuntimeException("Loan amount must be greater than 0");
-        }
-
-        if (request.getLoanIntRate() == null || request.getLoanIntRate() < 0) {
-            throw new RuntimeException("Loan interest rate must be greater than 0");
-        }
-
-        if (request.getLoanPercentIncome() == null || request.getLoanPercentIncome() < 0) {
-            throw new RuntimeException("Loan percent income must be greater than 0");
         }
 
         if (request.getCbPersonDefaultOnFile() == null) {
@@ -269,11 +229,7 @@ public class CustomerProfileServiceImpl implements CustomerProfileService {
                 .personIncome(request.getPersonIncome())
                 .personHomeOwnership(request.getPersonHomeOwnership())
                 .personEmpLength(request.getPersonEmpLength())
-                .loanIntent(request.getLoanIntent())
                 .loanGrade(request.getLoanGrade())
-                .loanAmnt(request.getLoanAmnt())
-                .loanIntRate(request.getLoanIntRate())
-                .loanPercentIncome(request.getLoanPercentIncome())
                 .cbPersonDefaultOnFile(request.getCbPersonDefaultOnFile())
                 .cbPersonCredHistLength(request.getCbPersonCredHistLength())
                 .createdAt(LocalDateTime.now())
@@ -291,11 +247,7 @@ public class CustomerProfileServiceImpl implements CustomerProfileService {
                 .personIncome(customerProfile.getPersonIncome())
                 .personHomeOwnership(customerProfile.getPersonHomeOwnership())
                 .personEmpLength(customerProfile.getPersonEmpLength())
-                .loanIntent(customerProfile.getLoanIntent())
                 .loanGrade(customerProfile.getLoanGrade())
-                .loanAmnt(customerProfile.getLoanAmnt())
-                .loanIntRate(customerProfile.getLoanIntRate())
-                .loanPercentIncome(customerProfile.getLoanPercentIncome())
                 .cbPersonDefaultOnFile(customerProfile.getCbPersonDefaultOnFile())
                 .cbPersonCredHistLength(customerProfile.getCbPersonCredHistLength())
                 .createdAt(customerProfile.getCreatedAt())

@@ -44,11 +44,6 @@ Trong Postman, tạo các variables sau:
     "personIncome": 50000.0,
     "personHomeOwnership": "RENT",
     "personEmpLength": 3.5,
-    "loanIntent": "PERSONAL",
-    "loanGrade": "A",
-    "loanAmnt": 10000.0,
-    "loanIntRate": 12.5,
-    "loanPercentIncome": 0.2,
     "cbPersonDefaultOnFile": "N",
     "cbPersonCredHistLength": 5
   }

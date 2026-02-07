@@ -1,7 +1,6 @@
 package com.smart_lend_platform.customerservice.entities;
 
 import com.smart_lend_platform.customerservice.enums.HomeOwnership;
-import com.smart_lend_platform.customerservice.enums.LoanIntent;
 import com.smart_lend_platform.customerservice.enums.LoanGrade;
 
 import jakarta.persistence.*;
@@ -46,21 +45,8 @@ public class CustomerProfile {
     @Column(name = "person_emp_length")
     private Double personEmpLength;
     
-    // Dataset Fields - Loan Information
-    @Column(name = "loan_intent", length = 100)
-    private LoanIntent loanIntent;
-    
     @Column(name = "loan_grade", length = 10)
     private LoanGrade loanGrade;
-    
-    @Column(name = "loan_amnt")
-    private Double loanAmnt;
-    
-    @Column(name = "loan_int_rate")
-    private Double loanIntRate;
-    
-    @Column(name = "loan_percent_income")
-    private Double loanPercentIncome;
     
     // Dataset Fields - Credit Bureau
     @Column(name = "cb_person_default_on_file", length = 10)
