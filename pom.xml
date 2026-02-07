@@ -18,6 +18,7 @@
         <module>customerservice</module>
         <module>predictionservice</module>
         <module>currencyservice</module>
+        <module>loanmanagementservice</module>
     </modules>
 
     <name>SmartLend Platform</name>
