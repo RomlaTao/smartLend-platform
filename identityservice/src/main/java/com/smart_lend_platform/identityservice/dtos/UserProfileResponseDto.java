@@ -14,8 +14,9 @@ import java.util.UUID;
 public class UserProfileResponseDto {
     private UUID userId;
     private String userSlug;
-    private String fullName;        
+    private String fullName;
     private String email;
+    private String role;
     private String department;
     private String position;
     private LocalDate hireDate;

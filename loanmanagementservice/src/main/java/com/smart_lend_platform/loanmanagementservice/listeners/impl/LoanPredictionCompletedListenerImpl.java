@@ -20,6 +20,6 @@ public class LoanPredictionCompletedListenerImpl implements LoanPredictionComple
     @RabbitListener(queues = "${rabbitmq.queue.loan-prediction-completed}")
     @Transactional
     public void handleLoanPredictionCompleted(ModelPredictCompletedMessage message) {
-        loanApplicationService.syncDecisionFromModelPredictCompleted(message);
+        // Do nothing, because model now only suggests, staff decides manually
     }
 }

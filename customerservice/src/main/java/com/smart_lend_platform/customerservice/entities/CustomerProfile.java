@@ -54,6 +54,9 @@ public class CustomerProfile {
     
     @Column(name = "cb_person_cred_hist_length")
     private Integer cbPersonCredHistLength;
+
+    @Column(name = "staff_id")
+    private UUID staffId;
     
     @Column(name = "created_at")
     private LocalDateTime createdAt;

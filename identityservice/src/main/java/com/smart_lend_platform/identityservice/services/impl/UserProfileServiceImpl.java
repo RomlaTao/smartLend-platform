@@ -14,6 +14,8 @@ import com.smart_lend_platform.identityservice.exceptions.UserProfileServiceExce
 import com.smart_lend_platform.identityservice.services.UserProfileService;
 import com.smart_lend_platform.identityservice.services.subservices.SlugGenerateService;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import java.util.UUID;
 import jakarta.transaction.Transactional;
@@ -93,6 +95,21 @@ public class UserProfileServiceImpl implements UserProfileService {
     }
 
     @Override
+    public Page<UserProfileResponseDto> getAllUsers(int page, int size) {
+        try {
+            Page<UserProfile> profiles = userProfileRepository.findAll(PageRequest.of(page, size));
+
+            if (profiles.isEmpty()) {
+                return Page.empty();
+            }
+
+            return profiles.map(this::mapToResponseDto);
+        } catch (Exception ex) {
+            throw new UserProfileServiceException("Failed to get all users", ex);
+        }
+    }
+
+    @Override
     public UserProfileResponseDto updateCurrentProfile(UUID currentUserId, UserProfileRequestDto request) {
         try {
 
@@ -150,16 +167,20 @@ public class UserProfileServiceImpl implements UserProfileService {
     }
 
     private UserProfileResponseDto mapToResponseDto(UserProfile profile) {
+        User user = userRepository.findByUserId(profile.getUserId()).orElse(null);
+
         return UserProfileResponseDto.builder()
                 .userId(profile.getUserId())
                 .userSlug(profile.getUserSlug())
                 .fullName(profile.getFullName())
                 .email(profile.getEmail())
+                .role(user != null && user.getRole() != null ? user.getRole().name() : null)
                 .department(profile.getDepartment())
                 .position(profile.getPosition())
                 .hireDate(profile.getHireDate())
                 .phoneNumber(profile.getPhoneNumber())
                 .address(profile.getAddress())
+                .isActive(user != null ? user.isActive() : null)
                 .createdAt(profile.getCreatedAt())
                 .updatedAt(profile.getUpdatedAt())
                 .build();

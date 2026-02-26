@@ -94,6 +94,10 @@ public class PredictionServiceImpl implements PredictionService {
             String inputDataJson;
             try {
                 inputDataJson = objectMapper.writeValueAsString(customerInfo);
+
+                // Log snapshot that will be used as model input for loan flow
+                log.info("[PREDICTION] Register-from-loan - snapshot before sending to model - predictionId={}, customerId={}, staffId={}, customerInfo={}",
+                        request.getPredictionId(), request.getCustomerId(), request.getStaffId(), inputDataJson);
             } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
                 throw new RuntimeException("Failed to serialize customerInfo for prediction inputData", e);
             }

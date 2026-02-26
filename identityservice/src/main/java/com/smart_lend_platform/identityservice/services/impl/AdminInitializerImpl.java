@@ -10,6 +10,7 @@ import com.smart_lend_platform.identityservice.entities.User;
 import com.smart_lend_platform.identityservice.enums.Role;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.util.UUID;
 
 @RequiredArgsConstructor
 @Service
@@ -32,8 +33,10 @@ public class AdminInitializerImpl implements CommandLineRunner {
     public void run(String... args) throws Exception {
         if (!userRepository.existsByEmail(adminDefaultEmail)) {
 
+            UUID adminUserId = UUID.randomUUID();
             // Create and save new user
             User admin = User.builder()
+                .userId(adminUserId)
                 .email(adminDefaultEmail)
                 .passwordHash(passwordEncoder.encode(adminDefaultPassword))
                 .role(Role.valueOf(adminDefaultRole))

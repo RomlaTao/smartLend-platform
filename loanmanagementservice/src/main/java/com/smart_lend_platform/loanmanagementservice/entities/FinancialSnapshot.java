@@ -30,6 +30,9 @@ public class FinancialSnapshot {
     @Column(name = "customer_id", nullable = false)
     private UUID customerId;
 
+    @Column(name = "customer_name", length = 255)
+    private String customerName;
+
     // Dataset Fields - Person Information
     @Column(name = "person_age", nullable = false)
     private Integer personAge;

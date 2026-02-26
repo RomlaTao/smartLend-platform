@@ -9,10 +9,7 @@ import com.smart_lend_platform.identityservice.services.AuthenticationService;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -26,12 +23,12 @@ public class AuthenticationController {
 
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/signup")
-    public ResponseEntity<String> signup(@RequestBody SignupRequestDto signupRequest) {
+    public ResponseEntity<Void> signup(@RequestBody SignupRequestDto signupRequest) {
         try {
             authenticationService.signup(signupRequest);
-            return ResponseEntity.ok("User registered successfully");
+            return ResponseEntity.ok(null);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 

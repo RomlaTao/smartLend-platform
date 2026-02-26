@@ -41,7 +41,8 @@ public class CorsConfig {
                 "Origin",
                 "Access-Control-Request-Method",
                 "Access-Control-Request-Headers",
-                "X-Gateway-Source"
+                "X-Gateway-Source",
+                "X-User-Id"
         ));
         
         // Cho phép credentials (cookies, authorization headers)
@@ -51,7 +52,8 @@ public class CorsConfig {
         corsConfig.setExposedHeaders(Arrays.asList(
                 "Access-Control-Allow-Origin",
                 "Access-Control-Allow-Credentials",
-                "X-Gateway-Source"
+                "X-Gateway-Source",
+                "X-User-Id"
         ));
         
         // Cache preflight response trong 3600 giây (1 giờ)

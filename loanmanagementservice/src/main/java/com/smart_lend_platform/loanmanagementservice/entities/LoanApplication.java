@@ -35,10 +35,6 @@ public class LoanApplication {
     @Column(name = "prediction_id")
     private UUID predictionId;
 
-    /** Độ tin cậy từ model (nếu có). */
-    @Column(name = "prediction_confidence")
-    private Double predictionConfidence;
-
     @Column(name = "requested_amount", precision = 19, scale = 4, nullable = false)
     private BigDecimal requestedAmount;
 
@@ -52,7 +48,7 @@ public class LoanApplication {
     @Column(name = "decision", nullable = false)
     private LoanDecision decision;
 
-    /** Thời điểm có quyết định (khi prediction COMPLETED hoặc nhân viên quyết định). */
+    /** Thời điểm có quyết định. */
     @Column(name = "decision_at")
     private LocalDateTime decisionAt;
 

@@ -3,6 +3,7 @@ package com.smart_lend_platform.loanmanagementservice.services;
 import com.smart_lend_platform.loanmanagementservice.dtos.LoanApplicationRequestDto;
 import com.smart_lend_platform.loanmanagementservice.dtos.LoanApplicationResponseDto;
 import com.smart_lend_platform.loanmanagementservice.dtos.events.ModelPredictCompletedMessage;
+import com.smart_lend_platform.loanmanagementservice.dtos.UpdateLoanDecisionRequestDto;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -22,6 +23,14 @@ public interface LoanApplicationService {
 
     Page<LoanApplicationResponseDto> getAll(Pageable pageable);
 
-    /** private method */
-    void syncDecisionFromModelPredictCompleted(ModelPredictCompletedMessage message);
+    LoanApplicationResponseDto triggerPrediction(UUID loanApplicationId, UUID staffId);
+
+    /**
+     * Cập nhật quyết định phê duyệt / từ chối do nhân viên thực hiện.
+     * Model chỉ đóng vai trò gợi ý, staff chọn quyết định cuối cùng.
+     */
+    LoanApplicationResponseDto updateDecision(
+                                              UUID loanApplicationId,
+                                              UpdateLoanDecisionRequestDto request,
+                                              UUID staffId);
 }

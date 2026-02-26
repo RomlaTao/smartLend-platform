@@ -1,5 +1,7 @@
 package com.smart_lend_platform.customerservice.dtos;
 
+import java.util.UUID;
+
 import com.smart_lend_platform.customerservice.enums.HomeOwnership;
 import com.smart_lend_platform.customerservice.enums.LoanGrade;
 import lombok.*;
@@ -23,4 +25,5 @@ public class CustomerProfileRequestDto {
     private LoanGrade loanGrade;
     private String cbPersonDefaultOnFile;
     private Integer cbPersonCredHistLength;
+    private UUID staffId;
 }

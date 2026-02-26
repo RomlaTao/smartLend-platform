@@ -24,6 +24,7 @@ public class CustomerProfileResponseDto {
     private LoanGrade loanGrade;
     private String cbPersonDefaultOnFile;
     private Integer cbPersonCredHistLength;
+    private UUID staffId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

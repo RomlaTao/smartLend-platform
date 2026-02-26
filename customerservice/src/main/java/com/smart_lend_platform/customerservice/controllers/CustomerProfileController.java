@@ -2,6 +2,7 @@ package com.smart_lend_platform.customerservice.controllers;
 
 import com.smart_lend_platform.customerservice.dtos.CustomerProfileRequestDto;
 import com.smart_lend_platform.customerservice.dtos.CustomerProfileResponseDto;
+import com.smart_lend_platform.customerservice.dtos.PageResponse;
 import com.smart_lend_platform.customerservice.services.CustomerProfileService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -23,14 +24,16 @@ public class CustomerProfileController {
 
     @PostMapping
     public ResponseEntity<CustomerProfileResponseDto> createCustomer(
-            @RequestBody CustomerProfileRequestDto request) {
-        return ResponseEntity.ok(customerProfileService.createCustomer(request));
+            @RequestBody CustomerProfileRequestDto request,
+            @RequestHeader("X-User-Id") UUID staffId) {
+        return ResponseEntity.ok(customerProfileService.createCustomer(request, staffId));
     }
 
     @PostMapping("/bulk")
     public ResponseEntity<List<CustomerProfileResponseDto>> createCustomers(
-            @RequestBody List<CustomerProfileRequestDto> requests) {
-        return ResponseEntity.ok(customerProfileService.createCustomers(requests));
+            @RequestBody List<CustomerProfileRequestDto> requests,
+            @RequestHeader("X-User-Id") UUID staffId) {
+        return ResponseEntity.ok(customerProfileService.createCustomers(requests, staffId));
     }
 
     @GetMapping("/slug/{customerSlug}")
@@ -46,14 +49,23 @@ public class CustomerProfileController {
     }
 
     @GetMapping
-    public ResponseEntity<Page<CustomerProfileResponseDto>> getAllCustomers(Pageable pageable) {
-        return ResponseEntity.ok(customerProfileService.getAllCustomers(pageable));
+    public ResponseEntity<PageResponse<CustomerProfileResponseDto>> getAllCustomers(Pageable pageable) {
+        Page<CustomerProfileResponseDto> page = customerProfileService.getAllCustomers(pageable);
+        PageResponse<CustomerProfileResponseDto> response = PageResponse.of(
+            page.getContent(),
+            page.getNumber(),
+            page.getSize(),
+            page.getTotalElements(),
+            page.getTotalPages()
+        );
+        return ResponseEntity.ok(response);
     }
 
     @PutMapping("/id/{customerId}")
     public ResponseEntity<CustomerProfileResponseDto> updateCustomer(
             @PathVariable("customerId") UUID customerId,
+            @RequestHeader("X-User-Id") UUID staffId,
             @RequestBody CustomerProfileRequestDto request) {
-        return ResponseEntity.ok(customerProfileService.updateCustomer(customerId, request));
+        return ResponseEntity.ok(customerProfileService.updateCustomer(customerId, request, staffId));
     }
 }

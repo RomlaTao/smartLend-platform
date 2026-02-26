@@ -27,7 +27,7 @@ public class CustomerProfileServiceImpl implements CustomerProfileService {
 
     @Transactional
     @Override
-    public CustomerProfileResponseDto createCustomer(CustomerProfileRequestDto request) {
+    public CustomerProfileResponseDto createCustomer(CustomerProfileRequestDto request, UUID staffId) {
 
         validateCreateCustomerRequest(request);
 
@@ -43,6 +43,7 @@ public class CustomerProfileServiceImpl implements CustomerProfileService {
                     .loanGrade(request.getLoanGrade())
                     .cbPersonDefaultOnFile(request.getCbPersonDefaultOnFile())
                     .cbPersonCredHistLength(request.getCbPersonCredHistLength())
+                    .staffId(staffId)
                     .createdAt(LocalDateTime.now())
                     .updatedAt(LocalDateTime.now())
                     .build();
@@ -56,10 +57,10 @@ public class CustomerProfileServiceImpl implements CustomerProfileService {
 
     @Transactional
     @Override
-    public List<CustomerProfileResponseDto> createCustomers(List<CustomerProfileRequestDto> requests) {
+    public List<CustomerProfileResponseDto> createCustomers(List<CustomerProfileRequestDto> requests, UUID staffId) {
         try {
             List<CustomerProfile> customerProfiles = requests.stream()
-                    .map(this::mapToEntity)
+                    .map(request -> mapToEntity(request, staffId))
                     .toList();
 
             List<CustomerProfile> savedProfiles = customerProfileRepository.saveAll(customerProfiles);
@@ -117,7 +118,7 @@ public class CustomerProfileServiceImpl implements CustomerProfileService {
 
     @Transactional
     @Override
-    public CustomerProfileResponseDto updateCustomer(UUID customerId, CustomerProfileRequestDto request) {
+    public CustomerProfileResponseDto updateCustomer(UUID customerId, CustomerProfileRequestDto request, UUID staffId) {
         validateUpdateCustomerRequest(request);
 
         try {
@@ -133,6 +134,7 @@ public class CustomerProfileServiceImpl implements CustomerProfileService {
             customerProfile.setLoanGrade(request.getLoanGrade());
             customerProfile.setCbPersonDefaultOnFile(request.getCbPersonDefaultOnFile());
             customerProfile.setCbPersonCredHistLength(request.getCbPersonCredHistLength());
+            customerProfile.setStaffId(staffId);
             customerProfile.setUpdatedAt(LocalDateTime.now());
             CustomerProfile updatedProfile = customerProfileRepository.save(customerProfile);
             return mapToResponseDto(updatedProfile);
@@ -220,7 +222,7 @@ public class CustomerProfileServiceImpl implements CustomerProfileService {
         }
     }   
 
-    private CustomerProfile mapToEntity(CustomerProfileRequestDto request) {
+    private CustomerProfile mapToEntity(CustomerProfileRequestDto request, UUID staffId) {
         return CustomerProfile.builder()
                 .customerSlug(slugGenerateService.generateSlug(request.getFullName()))
                 .fullName(request.getFullName())
@@ -232,6 +234,7 @@ public class CustomerProfileServiceImpl implements CustomerProfileService {
                 .loanGrade(request.getLoanGrade())
                 .cbPersonDefaultOnFile(request.getCbPersonDefaultOnFile())
                 .cbPersonCredHistLength(request.getCbPersonCredHistLength())
+                .staffId(staffId)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
@@ -250,6 +253,7 @@ public class CustomerProfileServiceImpl implements CustomerProfileService {
                 .loanGrade(customerProfile.getLoanGrade())
                 .cbPersonDefaultOnFile(customerProfile.getCbPersonDefaultOnFile())
                 .cbPersonCredHistLength(customerProfile.getCbPersonCredHistLength())
+                .staffId(customerProfile.getStaffId())
                 .createdAt(customerProfile.getCreatedAt())
                 .updatedAt(customerProfile.getUpdatedAt())
                 .build();

@@ -28,19 +28,19 @@ public class UserProfile {
     @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(length = 50)
+    @Column(nullable = true, length = 50)
     private String department;
 
-    @Column(length = 50)
+    @Column(nullable = true, length = 50)
     private String position;
 
-    @Column
+    @Column(nullable = true)
     private LocalDate hireDate;
 
-    @Column(length = 20)
+    @Column(nullable = true, length = 20)
     private String phoneNumber;
 
-    @Column(length = 200)
+    @Column(nullable = true, length = 200)
     private String address;
 
     @Column(name = "created_at", updatable = false)

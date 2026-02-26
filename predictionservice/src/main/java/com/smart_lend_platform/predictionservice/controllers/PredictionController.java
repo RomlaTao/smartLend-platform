@@ -2,6 +2,7 @@ package com.smart_lend_platform.predictionservice.controllers;
 
 import com.smart_lend_platform.predictionservice.dtos.PredictionRequestDto;
 import com.smart_lend_platform.predictionservice.dtos.PredictionResponseDto;
+import com.smart_lend_platform.predictionservice.dtos.PageResponse;
 import com.smart_lend_platform.predictionservice.dtos.RegisterPredictionFromLoanRequestDto;
 import com.smart_lend_platform.predictionservice.services.PredictionService;
 
@@ -66,7 +67,15 @@ public class PredictionController {
     }
 
     @GetMapping
-    public ResponseEntity<Page<PredictionResponseDto>> getAllPredictions(Pageable pageable) {
-        return ResponseEntity.ok(predictionService.getAllPredictions(pageable));
+    public ResponseEntity<PageResponse<PredictionResponseDto>> getAllPredictions(Pageable pageable) {
+        Page<PredictionResponseDto> page = predictionService.getAllPredictions(pageable);
+        PageResponse<PredictionResponseDto> response = PageResponse.of(
+            page.getContent(),
+            page.getNumber(),
+            page.getSize(),
+            page.getTotalElements(),
+            page.getTotalPages()
+        );
+        return ResponseEntity.ok(response);
     }
 }

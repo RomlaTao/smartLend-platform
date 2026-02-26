@@ -2,6 +2,8 @@ package com.smart_lend_platform.identityservice.repositories;
 
 import com.smart_lend_platform.identityservice.entities.UserProfile;
 import org.springframework.data.repository.CrudRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
@@ -14,4 +16,5 @@ public interface UserProfileRepository extends CrudRepository<UserProfile, UUID>
     Optional<UserProfile> findByUserSlug(String userSlug);
     boolean existsByUserSlug(String userSlug);
     boolean existsByUserId(UUID userId);
+    Page<UserProfile> findAll(Pageable pageable);
 }

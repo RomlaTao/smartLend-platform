@@ -15,6 +15,8 @@ import java.util.UUID;
 public class LoanApplicationResponseDto {
     private UUID id;
     private UUID customerId;
+    private String customerName;
+    private String loanGrade;
     private UUID financialSnapshotId;
     private UUID predictionId;
     private BigDecimal requestedAmount;

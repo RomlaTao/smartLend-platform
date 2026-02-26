@@ -8,7 +8,9 @@ import com.smart_lend_platform.identityservice.dtos.RefreshTokenResponseDto;
 import com.smart_lend_platform.identityservice.dtos.SignupRequestDto;
 import com.smart_lend_platform.identityservice.dtos.LogoutRequestDto;
 import com.smart_lend_platform.identityservice.entities.User;
+import com.smart_lend_platform.identityservice.entities.UserProfile;
 import com.smart_lend_platform.identityservice.enums.Role;
+import com.smart_lend_platform.identityservice.repositories.UserProfileRepository;
 import com.smart_lend_platform.identityservice.repositories.UserRepository;
 import com.smart_lend_platform.identityservice.exceptions.EmailAlreadyExistsException;
 import com.smart_lend_platform.identityservice.exceptions.PasswordMismatchException;
@@ -22,7 +24,7 @@ import com.smart_lend_platform.identityservice.securities.UserPrincipal;
 import com.smart_lend_platform.identityservice.services.AuthenticationService;
 import com.smart_lend_platform.identityservice.services.RedisTokenService;
 import com.smart_lend_platform.identityservice.services.subservices.CustomUserDetailsService;
-
+import com.smart_lend_platform.identityservice.services.subservices.SlugGenerateService;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -34,7 +36,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import jakarta.transaction.Transactional;
-
+import lombok.extern.slf4j.Slf4j;
 /**
  * Service implementation for authentication operations including:
  * - User registration (signup)
@@ -42,6 +44,7 @@ import jakarta.transaction.Transactional;
  * - Token refresh
  * - User logout
  */
+@Slf4j
 @RequiredArgsConstructor
 @Service
 public class AuthenticationServiceImpl implements AuthenticationService {
@@ -53,6 +56,8 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final CustomUserDetailsService customUserDetailsService;
     private final RedisTokenService redisTokenService;
     private final JwtConfig jwtConfig;
+    private final SlugGenerateService slugGenerateService;
+    private final UserProfileRepository userProfileRepository;
 
     @Override
     @Transactional
@@ -68,17 +73,35 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 throw new PasswordMismatchException("Passwords do not match");
             }
 
+            UUID userId = UUID.randomUUID();
             // Create and save new user
             User user = User.builder()
+                    .userId(userId)
                     .passwordHash(passwordEncoder.encode(signupRequest.getPassword()))
                     .email(signupRequest.getEmail())
                     .role(Role.valueOf(signupRequest.getRole()))
                     .failedLoginAttempts(0)
                     .build();
+            user.setCreatedAt(LocalDateTime.now());
+            user.setUpdatedAt(LocalDateTime.now());
+
+            try {
+                // Create and save default user profile
+                UserProfile userProfile = UserProfile.builder()
+                        .userId(userId)
+                        .fullName(signupRequest.getFullName())
+                        .userSlug(slugGenerateService.generateSlug(signupRequest.getFullName()))
+                        .email(user.getEmail())
+                        .build();
+
+                    userProfile.setCreatedAt(LocalDateTime.now());
+                    userProfile.setUpdatedAt(LocalDateTime.now());
+                    userProfileRepository.save(userProfile);
+            } catch (Exception ex) {
+                log.error("Failed to create default user profile for user: {}", userId, ex);
+            }
 
             return userRepository.save(user);
-        } catch (RuntimeException ex) {
-            throw ex;
         } catch (Exception ex) {
             throw new AuthenticationServiceException("Failed to sign up user", ex);
         }
