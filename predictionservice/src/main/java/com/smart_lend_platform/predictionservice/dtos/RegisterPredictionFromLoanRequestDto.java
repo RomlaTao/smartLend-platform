@@ -21,6 +21,9 @@ public class RegisterPredictionFromLoanRequestDto {
     @NotNull(message = "customerId is required")
     private UUID customerId;
 
+    /** Tên khách hàng tại thời điểm loan flow gọi register (phục vụ hiển thị nhanh ở FE). */
+    private String customerName;
+
     @NotNull(message = "customerInfo is required")
     private CustomerInfo customerInfo;
 

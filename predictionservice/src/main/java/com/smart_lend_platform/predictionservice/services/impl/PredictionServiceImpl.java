@@ -11,6 +11,7 @@ import com.smart_lend_platform.predictionservice.clients.CustomerClient;
 import com.smart_lend_platform.predictionservice.dtos.external.CustomerProfileResponseDto;
 import com.smart_lend_platform.predictionservice.publishers.PredictionEventPublisher;
 import com.smart_lend_platform.predictionservice.dtos.events.ModelPredictRequestedEventDto;
+import com.smart_lend_platform.predictionservice.services.CurrencyConverterService;
 
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.Pageable;
@@ -31,6 +32,7 @@ public class PredictionServiceImpl implements PredictionService {
     private final CustomerClient customerClient;
     private final PredictionEventPublisher predictionEventPublisher;
     private final ObjectMapper objectMapper;
+    private final CurrencyConverterService currencyConverterService;
 
     @Override
     public PredictionResponseDto createPrediction(PredictionRequestDto request, UUID staffId) {
@@ -47,6 +49,7 @@ public class PredictionServiceImpl implements PredictionService {
             Prediction prediction = Prediction.builder()
                 .predictionId(predictionId)
                 .customerId(request.getCustomerId())
+                .customerName(customerProfile.getFullName())
                 .employeeId(staffId)
                 .status(PredictionStatus.PENDING)
                 .inputData(objectMapper.writeValueAsString(modelInput))
@@ -104,6 +107,7 @@ public class PredictionServiceImpl implements PredictionService {
             Prediction prediction = Prediction.builder()
                     .predictionId(request.getPredictionId())
                     .customerId(request.getCustomerId())
+                    .customerName(request.getCustomerName())
                     .employeeId(request.getStaffId())
                     .status(PredictionStatus.PENDING)
                     .inputData(inputDataJson)
@@ -206,6 +210,27 @@ public class PredictionServiceImpl implements PredictionService {
         }
     }
 
+    private Double convertVndToUsd(Double vndAmount) {
+        Double usdAmount = currencyConverterService.convertVndToUsd(vndAmount);
+
+        // Fallback nếu service trả về giá trị không hợp lệ
+        if (usdAmount == null || usdAmount <= 0) {
+            if (vndAmount == null || vndAmount <= 0) {
+                log.warn("[PREDICTION] convertVndToUsd input invalid, vndAmount={}", vndAmount);
+                return 0.0;
+            }
+            // Dùng tỷ giá fallback cố định khi service convert gặp lỗi
+            final double fallbackRateVndPerUsd = 25000;
+            usdAmount = vndAmount * 1000 / fallbackRateVndPerUsd;
+            log.warn("[PREDICTION] convertVndToUsd fallback used - vndAmount={}, usdAmount={}, fallbackRate={}", 
+                    vndAmount, usdAmount, fallbackRateVndPerUsd);
+        } else {
+            log.debug("[PREDICTION] convertVndToUsd - vndAmount={}, usdAmount={}", vndAmount, usdAmount);
+        }
+
+        return usdAmount;
+    }
+
     /**
      * Đóng gói snapshot cần cho dự đoán từ profile (Customer) và request (loan params).
      * Một nguồn duy nhất để build model input cho luồng standalone.
@@ -219,12 +244,12 @@ public class PredictionServiceImpl implements PredictionService {
                 .fullName(profile.getFullName())
                 .email(profile.getEmail())
                 .personAge(profile.getPersonAge())
-                .personIncome(profile.getPersonIncome())
+                .personIncome(convertVndToUsd(profile.getPersonIncome()))
                 .personHomeOwnership(profile.getPersonHomeOwnership() != null ? profile.getPersonHomeOwnership() : null)
                 .personEmpLength(profile.getPersonEmpLength())
                 .loanIntent(request.getLoanIntent() != null ? request.getLoanIntent().name() : null)
                 .loanGrade(profile.getLoanGrade())
-                .loanAmnt(request.getLoanAmnt())
+                .loanAmnt(convertVndToUsd(request.getLoanAmnt()))
                 .loanIntRate(request.getLoanIntRate())
                 .loanStatus(request.getLoanStatus() != null ? request.getLoanStatus().name() : null)
                 .loanPercentIncome(request.getLoanPercentIncome())
@@ -238,6 +263,7 @@ public class PredictionServiceImpl implements PredictionService {
             .predictionId(prediction.getPredictionId())
             .customerId(prediction.getCustomerId())
             .employeeId(prediction.getEmployeeId())
+            .customerName(prediction.getCustomerName())
             .status(prediction.getStatus())
             .predictionResult(prediction.getPredictionResult())
             .confidence(prediction.getConfidence())

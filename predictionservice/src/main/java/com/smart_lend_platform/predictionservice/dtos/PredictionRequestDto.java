@@ -14,6 +14,9 @@ import java.util.UUID;
 @Builder
 public class PredictionRequestDto {
     private UUID customerId;
+    private String customerName;
+    private UUID employeeId;
+    private String employeeName;
     private LoanIntent loanIntent;
     private Double loanAmnt;
     private Double loanIntRate;

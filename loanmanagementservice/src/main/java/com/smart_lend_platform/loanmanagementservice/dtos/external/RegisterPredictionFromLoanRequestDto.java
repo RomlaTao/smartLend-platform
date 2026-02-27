@@ -18,6 +18,8 @@ public class RegisterPredictionFromLoanRequestDto {
     private UUID predictionId;
     private UUID customerId;
     private UUID staffId;
+    /** Tên khách hàng tại thời điểm đăng ký prediction (để PredictionService lưu cho mục đích hiển thị). */
+    private String customerName;
     /** Snapshot tài chính cần cho dự đoán (cùng format với model input). */
     private CustomerInfo customerInfo;
 

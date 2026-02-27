@@ -16,7 +16,7 @@ import com.smart_lend_platform.loanmanagementservice.enums.LoanDecision;
 import com.smart_lend_platform.loanmanagementservice.repositories.FinancialSnapshotRepository;
 import com.smart_lend_platform.loanmanagementservice.repositories.LoanApplicationRepository;
 import com.smart_lend_platform.loanmanagementservice.services.LoanApplicationService;
-import com.smart_lend_platform.loanmanagementservice.dtos.events.ModelPredictCompletedMessage;
+import com.smart_lend_platform.loanmanagementservice.services.impl.CurrencyConverterServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -38,6 +38,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     private final ModelPredictRequestPublisher modelPredictRequestPublisher;
     private final PredictionClient predictionClient;
     private final CustomerClient customerClient;
+    private final CurrencyConverterServiceImpl currencyConverterService;
 
     @Override
     @Transactional
@@ -58,12 +59,12 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                 .customerId(request.getCustomerId())
                 .customerName(profile.getFullName())
                 .personAge(profile.getPersonAge())
-                .personIncome(profile.getPersonIncome())
+                .personIncome(currencyConverterService.convertVndToUsd(profile.getPersonIncome()))
                 .personHomeOwnership(profile.getPersonHomeOwnership())
                 .personEmpLength(profile.getPersonEmpLength())
                 .loanIntent(request.getLoanIntent())
                 .loanGrade(profile.getLoanGrade())
-                .loanAmnt(loanAmnt)
+                .loanAmnt(currencyConverterService.convertVndToUsd(loanAmnt))
                 .loanIntRate(loanIntRate)
                 .loanPercentIncome(loanPercentIncome)
                 .cbPersonDefaultOnFile(profile.getCbPersonDefaultOnFile())
@@ -119,6 +120,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         RegisterPredictionFromLoanRequestDto registerRequest = RegisterPredictionFromLoanRequestDto.builder()
                 .predictionId(predictionId)
                 .customerId(application.getCustomerId())
+                .customerName(snapshot.getCustomerName())
                 .staffId(staffId)
                 .customerInfo(customerInfo)
                 .build();

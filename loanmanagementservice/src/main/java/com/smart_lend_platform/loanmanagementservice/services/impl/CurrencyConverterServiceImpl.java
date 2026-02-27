@@ -1,7 +1,6 @@
-package com.smart_lend_platform.predictionservice.services.impl;
+package com.smart_lend_platform.loanmanagementservice.services.impl;
 
-import com.smart_lend_platform.predictionservice.clients.CurrencyClient;
-import com.smart_lend_platform.predictionservice.services.CurrencyConverterService;
+import com.smart_lend_platform.loanmanagementservice.clients.CurrencyClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -9,11 +8,10 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @RequiredArgsConstructor
 @Service
-public class CurrencyConverterServiceImpl implements CurrencyConverterService {
+public class CurrencyConverterServiceImpl {
 
     private final CurrencyClient currencyClient;
 
-    @Override
     public Double convertVndToUsd(Double vndAmount) {
         if (vndAmount == null || vndAmount <= 0) {
             log.warn("[PREDICTION] Invalid VND amount for conversion: {}", vndAmount);
@@ -40,3 +38,4 @@ public class CurrencyConverterServiceImpl implements CurrencyConverterService {
         }
     }
 }
+

@@ -22,6 +22,9 @@ public class Prediction {
     @Column(nullable = false)
     private UUID customerId;
 
+    @Column(name = "customer_name", length = 255)
+    private String customerName;
+
     @Column(nullable = false)
     private UUID employeeId; // Nhân viên tạo prediction
 

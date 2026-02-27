@@ -15,6 +15,8 @@ public class PredictionResponseDto {
     private UUID predictionId;
     private UUID customerId;
     private UUID employeeId;
+    private String customerName;
+    private String employeeName;
     private PredictionStatus status;
     private Boolean predictionResult;  // Null when status is PENDING
     private Double confidence;  // Changed to Double (nullable) - Null when status is PENDING

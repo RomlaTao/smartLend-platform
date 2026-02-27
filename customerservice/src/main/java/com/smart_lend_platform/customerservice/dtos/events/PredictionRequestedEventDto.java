@@ -16,6 +16,7 @@ public class PredictionRequestedEventDto {
     private UUID eventId;
     private UUID customerProfileId;
     private String customerSlug;
+    private String customerName;
 
     // ======> Request data
     private Integer personAge;

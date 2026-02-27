@@ -14,6 +14,9 @@ public class WebClientConfig {
     @Value("${predictionservice.url}")
     private String predictionServiceUrl;
 
+    @Value("${currencyservice.url:http://currencyservice:8011}")
+    private String currencyServiceUrl;
+
     @Bean
     public WebClient customerWebClient(WebClient.Builder builder) {
         return builder
@@ -25,6 +28,13 @@ public class WebClientConfig {
     public WebClient predictionWebClient(WebClient.Builder builder) {
         return builder
                 .baseUrl(predictionServiceUrl)
+                .build();
+    }
+
+    @Bean
+    public WebClient currencyWebClient(WebClient.Builder builder) {
+        return builder
+                .baseUrl(currencyServiceUrl)
                 .build();
     }
 }
