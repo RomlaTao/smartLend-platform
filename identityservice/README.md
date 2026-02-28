@@ -1,33 +1,54 @@
-# IdentityService – Test mẫu Postman
+# IdentityService
 
-Service xác thực (login, signup, refresh, logout) và quản lý user profile. Base URL mặc định: `http://localhost:8005`.
+Service chịu trách nhiệm **xác thực người dùng (authentication)**, **cấp/refresh/thu hồi JWT** và **quản lý hồ sơ người dùng (user profile)** cho hệ thống SmartLend.
 
----
-
-## 1. Environment Postman
-
-Tạo Environment (ví dụ: `SmartLend - Identity`) với các biến:
-
-| Biến | Ví dụ | Ghi chú |
-|------|--------|---------|
-| `base_url_identity` | `http://localhost:8005` | Base URL IdentityService |
-| `access_token` | (để trống) | Gán sau **Login**; dùng cho header `Authorization: Bearer {{access_token}}` |
-| `refresh_token` | (để trống) | Gán sau **Login**; dùng cho Refresh / Logout |
-| `user_id` | (để trống) | UUID user (lấy từ response Login); dùng cho header `X-User-Id` khi gọi `/me` |
-| `user_slug` | (để trống) | Slug profile (lấy từ response Get profile); dùng cho GET by slug |
-
-**Role (signup):** `ADMIN`, `ANALYSTIC`, `STAFF`.
+- **Base URL mặc định (dev):** `http://localhost:8005`
+- **Prefix API chính:**
+  - ` /api/auth` – các API đăng nhập, đăng ký, refresh, logout
+  - ` /api/users-profiles` – các API đọc/cập nhật hồ sơ người dùng
 
 ---
 
-## 2. Collection – Authentication (`/api/auth`)
+## 1. Chức năng chính
 
-### 2.1. Login (public – không cần token)
+- **Xác thực & cấp token**
+  - Đăng nhập với email/password và nhận `accessToken` + `refreshToken`
+  - Làm mới access token dựa trên refresh token (token rotation + blacklist)
+  - Đăng xuất, blacklist cả access token và refresh token
+
+- **Quản lý tài khoản & phân quyền**
+  - ADMIN tạo user mới với role: `ADMIN`, `ANALYSTIC`, `STAFF`
+  - Lưu thông tin login lần đầu (`firstLogin`)
+
+- **Quản lý hồ sơ người dùng (User Profile)**
+  - Lấy/cập nhật profile hiện tại theo `X-User-Id`
+  - Lấy/cập nhật profile theo `userId` (ADMIN)
+  - Lấy profile theo `userSlug`
+  - Lấy danh sách user profile phân trang (ADMIN)
+
+---
+
+## 2. Ghi chú chung khi gọi API
+
+- **Header Authorization (JWT):**
+  - `Authorization: Bearer <accessToken>` – bắt buộc với các API yêu cầu xác thực/role.
+- **Header nhận diện user hiện tại:**
+  - `X-User-Id: <UUID>` – dùng cho các API `/me` trong `UserProfileController`.
+- **Định dạng ngày:**
+  - `hireDate`: chuỗi `YYYY-MM-DD`, ví dụ: `"2024-01-15"`.
+
+---
+
+## 3. Nhóm API Authentication (`/api/auth`)
+
+### 3.1. Đăng nhập – Login
 
 - **Method:** `POST`
-- **URL:** `{{base_url_identity}}/api/auth/login`
-- **Headers:** `Content-Type: application/json`
-- **Body (raw JSON)** – `LoginRequestDto`:
+- **URL:** `/api/auth/login`
+- **Auth:** Public (không cần token)
+- **Headers:**
+  - `Content-Type: application/json`
+- **Request body** – `LoginRequestDto`:
 
 ```json
 {
@@ -36,245 +57,178 @@ Tạo Environment (ví dụ: `SmartLend - Identity`) với các biến:
 }
 ```
 
-- **Tests:**
-
-```javascript
-pm.test("Status code is 200", function () {
-    pm.response.to.have.status(200);
-});
-
-pm.test("Response has accessToken, refreshToken, userId", function () {
-    const json = pm.response.json();
-    pm.expect(json).to.have.property("accessToken");
-    pm.expect(json).to.have.property("refreshToken");
-    pm.expect(json).to.have.property("userId");
-});
-
-pm.test("Save tokens and user_id", function () {
-    const json = pm.response.json();
-    pm.environment.set("access_token", json.accessToken);
-    pm.environment.set("refresh_token", json.refreshToken);
-    pm.environment.set("user_id", json.userId);
-});
-```
-
----
-
-### 2.2. Refresh Token (public)
-
-- **Method:** `POST`
-- **URL:** `{{base_url_identity}}/api/auth/refresh`
-- **Headers:** `Content-Type: application/json`
-- **Body (raw JSON)** – `RefreshTokenRequestDto`:
+- **Response body** – `LoginResponseDto` (200 OK):
 
 ```json
 {
-  "refreshToken": "{{refresh_token}}"
+  "userId": "7b7a3b7c-0d6b-4e1f-9d1b-9a1c2b3d4e5f",
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "tokenType": "Bearer",
+  "email": "admin@example.com",
+  "role": "ADMIN",
+  "firstLogin": true
 }
 ```
 
-- **Tests:**
-
-```javascript
-pm.test("Status code is 200", function () {
-    pm.response.to.have.status(200);
-});
-
-pm.test("Response has newAccessToken, newRefreshToken", function () {
-    const json = pm.response.json();
-    pm.expect(json).to.have.property("newAccessToken");
-    pm.expect(json).to.have.property("newRefreshToken");
-});
-
-pm.test("Save new tokens", function () {
-    const json = pm.response.json();
-    pm.environment.set("access_token", json.newAccessToken);
-    pm.environment.set("refresh_token", json.newRefreshToken);
-});
-```
-
----
-
-### 2.3. Signup (chỉ ADMIN – cần Bearer token)
+### 3.2. Làm mới token – Refresh token
 
 - **Method:** `POST`
-- **URL:** `{{base_url_identity}}/api/auth/signup`
+- **URL:** `/api/auth/refresh`
+- **Auth:** Public (chỉ cần refresh token hợp lệ)
 - **Headers:**
   - `Content-Type: application/json`
-  - `Authorization: Bearer {{access_token}}`
-- **Body (raw JSON)** – `SignupRequestDto`:
+- **Request body** – `RefreshTokenRequestDto`:
+
+```json
+{
+  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+- **Response body** – `RefreshTokenResponseDto` (200 OK):
+
+```json
+{
+  "newAccessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "newRefreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+### 3.3. Đăng ký tài khoản – Signup (ADMIN)
+
+- **Method:** `POST`
+- **URL:** `/api/auth/signup`
+- **Auth:** Chỉ `ADMIN`
+- **Headers:**
+  - `Content-Type: application/json`
+  - `Authorization: Bearer <accessToken>`
+- **Request body** – `SignupRequestDto`:
 
 ```json
 {
   "email": "staff1@example.com",
+  "fullName": "Staff One",
   "password": "password123",
   "passwordConfirm": "password123",
   "role": "STAFF"
 }
 ```
 
-- **Tests:**
+- **Response:**
+  - `200 OK` – body rỗng (tạo user thành công; profile mặc định được tạo kèm theo)
+  - `400/409` – khi email trùng, password không khớp, v.v. (xem `GlobalExceptionHandler`)
 
-```javascript
-pm.test("Status code is 200", function () {
-    pm.response.to.have.status(200);
-});
-
-pm.test("Response body indicates success", function () {
-    const text = pm.response.text();
-    pm.expect(text.toLowerCase()).to.include("success");
-});
-```
-
----
-
-### 2.4. Logout (cần Bearer token)
+### 3.4. Đăng xuất – Logout
 
 - **Method:** `POST`
-- **URL:** `{{base_url_identity}}/api/auth/logout`
+- **URL:** `/api/auth/logout`
+- **Auth:** Bắt buộc access token
 - **Headers:**
   - `Content-Type: application/json`
-  - `Authorization: Bearer {{access_token}}`
-- **Body (raw JSON)** – `LogoutRequestDto`:
+  - `Authorization: Bearer <accessToken>`
+- **Request body** – `LogoutRequestDto`:
 
 ```json
 {
-  "refreshToken": "{{refresh_token}}"
+  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 }
 ```
 
-- **Tests:**
-
-```javascript
-pm.test("Status code is 200", function () {
-    pm.response.to.have.status(200);
-});
-```
+- **Response:**
+  - `200 OK` – body rỗng; access token và refresh token bị blacklist và xóa khỏi Redis.
 
 ---
 
-## 3. Collection – User profiles (`/api/users-profiles`)
+## 4. Nhóm API User Profile (`/api/users-profiles`)
 
-Các request `/me` bắt buộc header `X-User-Id: {{user_id}}` (UUID của user đang đăng nhập). Có thể kèm `Authorization: Bearer {{access_token}}` nếu backend yêu cầu JWT.
+### 4.1. Lấy profile hiện tại – Get current profile
 
-### 3.1. Create profile (POST /me)
-
-- **Method:** `POST`
-- **URL:** `{{base_url_identity}}/api/users-profiles/me`
+- **Method:** `GET`
+- **URL:** `/api/users-profiles/me`
 - **Headers:**
-  - `Content-Type: application/json`
-  - `X-User-Id: {{user_id}}`
-- **Body (raw JSON)** – `UserProfileRequestDto` (các field optional tùy validation backend):
+  - `X-User-Id: <UUID>`
+- **Response body** – `UserProfileResponseDto` (200 OK):
 
 ```json
 {
-  "userSlug": "john-doe",
-  "fullName": "John Doe",
-  "email": "john@example.com",
-  "department": "Sales",
-  "position": "Staff",
-  "hireDate": "2024-01-15",
+  "userId": "7b7a3b7c-0d6b-4e1f-9d1b-9a1c2b3d4e5f",
+  "userSlug": "admin",
+  "fullName": "System Admin",
+  "email": "admin@example.com",
+  "role": "ADMIN",
+  "department": "IT",
+  "position": "Administrator",
+  "hireDate": "2024-01-01",
   "phoneNumber": "0901234567",
   "address": "123 Main St",
-  "isActive": true
+  "isActive": true,
+  "createdAt": "2024-01-01T09:00:00",
+  "updatedAt": "2024-01-15T10:30:00"
 }
 ```
 
-- **Tests:**
-
-```javascript
-pm.test("Status code is 200", function () {
-    pm.response.to.have.status(200);
-});
-
-pm.test("Response has userId, userSlug, fullName", function () {
-    const json = pm.response.json();
-    pm.expect(json).to.have.property("userId");
-    pm.expect(json).to.have.property("userSlug");
-    pm.expect(json).to.have.property("fullName");
-});
-
-pm.test("Save user_slug", function () {
-    const json = pm.response.json();
-    if (json.userSlug) pm.environment.set("user_slug", json.userSlug);
-});
-```
-
----
-
-### 3.2. Get current profile (GET /me)
+### 4.2. Lấy profile theo userId – Get profile by ID
 
 - **Method:** `GET`
-- **URL:** `{{base_url_identity}}/api/users-profiles/me`
-- **Headers:** `X-User-Id: {{user_id}}`
+- **URL:** `/api/users-profiles/id/{userId}`
+- **Path variable:**
+  - `userId`: UUID của user
+- **Headers:** (tùy config bảo mật có thể yêu cầu `Authorization: Bearer <accessToken>`)
+- **Response body:** như `UserProfileResponseDto` ở trên.
 
-- **Tests:**
-
-```javascript
-pm.test("Status code is 200", function () {
-    pm.response.to.have.status(200);
-});
-
-pm.test("Response has userId, userSlug, fullName, email", function () {
-    const json = pm.response.json();
-    pm.expect(json).to.have.property("userId");
-    pm.expect(json).to.have.property("fullName");
-});
-```
-
----
-
-### 3.3. Get profile by user ID (GET /id/{userId})
+### 4.3. Lấy profile theo slug – Get profile by slug
 
 - **Method:** `GET`
-- **URL:** `{{base_url_identity}}/api/users-profiles/id/{{user_id}}`
-- **Headers:** `Authorization: Bearer {{access_token}}` (nếu backend yêu cầu)
+- **URL:** `/api/users-profiles/slug/{userSlug}`
+- **Path variable:**
+  - `userSlug`: slug của user, ví dụ `"john-doe"`
+- **Response body:** như `UserProfileResponseDto` ở trên.
 
-- **Tests:**
-
-```javascript
-pm.test("Status code is 200", function () {
-    pm.response.to.have.status(200);
-});
-
-pm.test("Response has userId, fullName", function () {
-    const json = pm.response.json();
-    pm.expect(json).to.have.property("userId");
-    pm.expect(json).to.have.property("fullName");
-});
-```
-
----
-
-### 3.4. Get profile by slug (GET /slug/{userSlug})
+### 4.4. Lấy danh sách profile – Get all users (ADMIN, có phân trang)
 
 - **Method:** `GET`
-- **URL:** `{{base_url_identity}}/api/users-profiles/slug/{{user_slug}}`
+- **URL:** `/api/users-profiles/all`
+- **Auth:** Chỉ `ADMIN`
+- **Query params:**
+  - `page` (optional, default `0`)
+  - `size` (optional, default `10`)
+- **Response body** – `PageResponse<UserProfileResponseDto>`:
 
-- **Tests:**
-
-```javascript
-pm.test("Status code is 200", function () {
-    pm.response.to.have.status(200);
-});
-
-pm.test("Response has userSlug, fullName", function () {
-    const json = pm.response.json();
-    pm.expect(json).to.have.property("userSlug");
-    pm.expect(json).to.have.property("fullName");
-});
+```json
+{
+  "content": [
+    {
+      "userId": "7b7a3b7c-0d6b-4e1f-9d1b-9a1c2b3d4e5f",
+      "userSlug": "admin",
+      "fullName": "System Admin",
+      "email": "admin@example.com",
+      "role": "ADMIN",
+      "department": "IT",
+      "position": "Administrator",
+      "hireDate": "2024-01-01",
+      "phoneNumber": "0901234567",
+      "address": "123 Main St",
+      "isActive": true,
+      "createdAt": "2024-01-01T09:00:00",
+      "updatedAt": "2024-01-15T10:30:00"
+    }
+  ],
+  "page": 0,
+  "size": 10,
+  "totalElements": 1,
+  "totalPages": 1
+}
 ```
 
----
-
-### 3.5. Update current profile (PUT /me)
+### 4.5. Cập nhật profile hiện tại – Update current profile
 
 - **Method:** `PUT`
-- **URL:** `{{base_url_identity}}/api/users-profiles/me`
+- **URL:** `/api/users-profiles/me`
 - **Headers:**
   - `Content-Type: application/json`
-  - `X-User-Id: {{user_id}}`
-- **Body (raw JSON)** – `UserProfileRequestDto` (chỉ gửi field cần cập nhật hoặc đủ object):
+  - `X-User-Id: <UUID>`
+- **Request body** – `UserProfileRequestDto` (có thể gửi một phần trường cần cập nhật):
 
 ```json
 {
@@ -290,30 +244,19 @@ pm.test("Response has userSlug, fullName", function () {
 }
 ```
 
-- **Tests:**
+- **Response body** – `UserProfileResponseDto` sau khi cập nhật.
 
-```javascript
-pm.test("Status code is 200", function () {
-    pm.response.to.have.status(200);
-});
-
-pm.test("Response has userId, fullName", function () {
-    const json = pm.response.json();
-    pm.expect(json).to.have.property("userId");
-    pm.expect(json).to.have.property("fullName");
-});
-```
-
----
-
-### 3.6. Update profile by ID (PUT /id/{userId}) – ADMIN only
+### 4.6. Cập nhật profile theo userId – Update profile by ID (ADMIN)
 
 - **Method:** `PUT`
-- **URL:** `{{base_url_identity}}/api/users-profiles/id/{{user_id}}`
+- **URL:** `/api/users-profiles/id/{userId}`
+- **Auth:** Chỉ `ADMIN`
 - **Headers:**
   - `Content-Type: application/json`
-  - `Authorization: Bearer {{access_token}}`
-- **Body (raw JSON)** – `UserProfileRequestDto`:
+  - `Authorization: Bearer <accessToken>`
+- **Path variable:**
+  - `userId`: UUID user cần cập nhật
+- **Request body** – `UserProfileRequestDto`:
 
 ```json
 {
@@ -329,29 +272,6 @@ pm.test("Response has userId, fullName", function () {
 }
 ```
 
-- **Tests:**
-
-```javascript
-pm.test("Status code is 200", function () {
-    pm.response.to.have.status(200);
-});
-
-pm.test("Response has userId, fullName", function () {
-    const json = pm.response.json();
-    pm.expect(json).to.have.property("userId");
-    pm.expect(json).to.have.property("fullName");
-});
-```
+- **Response body** – `UserProfileResponseDto` sau khi cập nhật.
 
 ---
-
-## 4. Thứ tự chạy gợi ý
-
-1. **Login** → lưu `access_token`, `refresh_token`, `user_id`.
-2. **Create profile (POST /me)** hoặc **Get current profile (GET /me)** → có thể lưu `user_slug`.
-3. **Get by id**, **Get by slug**, **Update (PUT /me)** tùy nhu cầu.
-4. **Refresh** khi access token hết hạn (dùng `refresh_token`).
-5. **Signup** chỉ khi đã login bằng tài khoản ADMIN.
-6. **Logout** khi cần invalidation refresh token.
-
-**Lưu ý:** User mặc định (admin): `admin@example.com` / `admin` (xem `application.properties`). Dùng để login lấy token trước khi gọi Signup hoặc các API cần ADMIN.
