@@ -12,7 +12,7 @@ Backend được tách thành nhiều service độc lập, giao tiếp với nh
 
 ## Sơ đồ kiến trúc hệ thống
 
-![Sơ đồ kiến trúc SmartLend](../assets/c__Users_thinh_AppData_Roaming_Cursor_User_workspaceStorage_f4e49a1e40353472cfedabf299023690_images_image-7f6c4431-df7a-4ad6-a28d-fe16ec664500.png)
+![Sơ đồ kiến trúc SmartLend](@img/image-5815a611-7caf-4a91-8f88-a0d808344502.png)
 
 ---
 
