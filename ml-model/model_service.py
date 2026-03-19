@@ -1,189 +1,200 @@
 import joblib
-import pandas as pd
+import json
 import numpy as np
+import pandas as pd
+import shap
+import lime.lime_tabular
 import logging
 from typing import Dict, Tuple
 
 logger = logging.getLogger(__name__)
 
+GRADE_MAP = {'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4, 'F': 5, 'G': 6}
+
+
 class ModelService:
-    def __init__(self, model_path: str, ohe_encoder_path: str, scaler_path: str, 
-                 merge_ohe_columns_path: str, training_columns_path: str):
+    def __init__(self, lgbm_bundle_path: str, preprocessing_meta_path: str,
+                 shap_explainer_path: str, lime_train_data_path: str):
         """
-        Initialize the Model Service with pre-trained model and preprocessors
-        
+        Initialize the Model Service v2 with LightGBM + SHAP + LIME.
+
         Args:
-            model_path: Path to the trained model
-            ohe_encoder_path: Path to the OneHotEncoder
-            scaler_path: Path to the StandardScaler
-            merge_ohe_columns_path: Path to the merged OHE column names
-            training_columns_path: Path to the training column names
+            lgbm_bundle_path:        Path to lgbm_bundle.pkl (model + threshold)
+            preprocessing_meta_path: Path to preprocessing_meta.json
+            shap_explainer_path:     Path to shap_explainer.pkl
+            lime_train_data_path:    Path to lime_train_data.npy
         """
         try:
-            self.model = joblib.load(model_path)
-            self.ohe_encoder = joblib.load(ohe_encoder_path)
-            self.scaler = joblib.load(scaler_path)
-            self.merge_ohe_columns = joblib.load(merge_ohe_columns_path)
-            self.training_columns = joblib.load(training_columns_path)
-            
-            logger.info("Model and preprocessors loaded successfully!")
+            # Load model + G-mean optimal threshold
+            bundle = joblib.load(lgbm_bundle_path)
+            self.model     = bundle['model']
+            self.threshold = float(bundle['threshold'])
+
+            # Load preprocessing metadata (medians, modes, outlier bounds, feature names)
+            with open(preprocessing_meta_path, 'r') as f:
+                self.meta = json.load(f)
+            self.feature_names = self.meta['feature_names']
+
+            # Load SHAP TreeExplainer
+            self.shap_explainer = joblib.load(shap_explainer_path)
+
+            # Recreate LIME explainer from saved training data (avoids lambda pickle issues)
+            lime_train_data = np.load(lime_train_data_path, allow_pickle=True)
+            self.lime_explainer = lime.lime_tabular.LimeTabularExplainer(
+                training_data = lime_train_data,
+                feature_names = self.feature_names,
+                class_names   = ['Non-Default', 'Default'],
+                mode          = 'classification',
+                random_state  = 42,
+            )
+
+            logger.info(
+                f"ModelService v2 loaded — "
+                f"threshold={self.threshold:.4f}, features={len(self.feature_names)}"
+            )
         except Exception as e:
             logger.error(f"Error loading model components: {e}")
             raise
 
+    # ── Public interface ──────────────────────────────────────────────────
+
     def predict(self, raw_data: dict) -> Tuple[bool, float]:
         """
-        Make prediction on new data
-        
+        Make prediction on new data.
+        Returns (label, probability) — same interface as v1 for full backward compatibility.
+
         Args:
-            raw_data: Dictionary containing input features
-            
+            raw_data: Dictionary with camelCase keys from Java DTO
+
         Returns:
-            Tuple of (prediction_label, probability)
-            - prediction_label: True if loan default predicted, False otherwise
-            - probability: Confidence score of the prediction
+            Tuple of (prediction_label: bool, probability: float)
+            - prediction_label: True if Default predicted, False if Non-Default
+            - probability: P(Default) in [0, 1]
         """
         try:
-            # 1. Convert raw data to DataFrame
-            new_df = pd.DataFrame([self._map_input_data(raw_data)])
-            
-            # 2. Re-create derived categorical features
-            new_df = self._create_derived_features(new_df)
-            
-            # 3. Define columns for OHE and scaling
-            ohe_columns = ['cb_person_default_on_file', 'loan_grade', 'person_home_ownership', 
-                          'loan_intent', 'income_group', 'age_group', 'loan_amount_group']
-            normal_columns = ['person_income', 'person_age', 'person_emp_length', 'loan_amnt',
-                            'loan_int_rate', 'cb_person_cred_hist_length', 'loan_percent_income', 
-                            'loan_to_income_ratio', 'loan_to_emp_length_ratio', 'int_rate_to_loan_amt_ratio']
-            
-            # 4. Ensure categorical columns have correct categories
-            new_df = self._fix_categorical_columns(new_df, ohe_columns)
-            
-            # 5. One-hot encode categorical features
-            ohe_transformed = self.ohe_encoder.transform(new_df[ohe_columns]).toarray()
-            new_ohe_data = pd.DataFrame(ohe_transformed, columns=self.merge_ohe_columns)
-            
-            # 6. Prepare and scale numerical features
-            numerical_features = new_df[normal_columns].copy()
-            numerical_features = numerical_features.replace([np.inf, -np.inf], np.nan).fillna(0)
-            scaled_numerical_features = pd.DataFrame(
-                self.scaler.transform(numerical_features), 
-                columns=normal_columns
-            )
-            
-            # 7. Combine OHE and scaled features
-            processed_df = pd.concat([new_ohe_data, scaled_numerical_features], axis=1)
-            
-            # 8. Clean feature names
-            processed_df.columns = [str(col).replace(' ', '_') if isinstance(col, str) else col 
-                                   for col in processed_df.columns]
-            
-            # 9. Ensure column order and presence matches training
-            processed_df = self._align_with_training_columns(processed_df)
-            
-            # 10. Make prediction
-            prediction = self.model.predict(processed_df)[0]
-            prediction_proba = self.model.predict_proba(processed_df)[0]
-            
-            # Return label and probability (probability of class 1 - loan default)
-            label = bool(prediction == 1)
-            probability = float(prediction_proba[1])
-            
-            logger.info(f"Prediction completed - Label: {label}, Probability: {probability:.4f}")
-            return label, probability
-            
+            X     = self._preprocess(raw_data)
+            prob  = float(self.model.predict_proba(X)[0, 1])
+            label = bool(prob >= self.threshold)
+            logger.info(f"Prediction — label={label}, prob={prob:.4f}, threshold={self.threshold:.4f}")
+            return label, prob
         except Exception as e:
             logger.error(f"Error during prediction: {e}")
             raise
 
-    def _map_input_data(self, raw_data: dict) -> dict:
-        """Map input data from Java DTO format to model input format"""
-        return {
-            'person_age': raw_data.get('personAge'),
-            'person_income': raw_data.get('personIncome'),
-            'person_home_ownership': raw_data.get('personHomeOwnership'),
-            'person_emp_length': raw_data.get('personEmpLength'),
-            'loan_intent': raw_data.get('loanIntent'),
-            'loan_grade': raw_data.get('loanGrade'),
-            'loan_amnt': raw_data.get('loanAmnt'),
-            'loan_int_rate': raw_data.get('loanIntRate'),
-            'loan_percent_income': raw_data.get('loanPercentIncome'),
-            'cb_person_default_on_file': raw_data.get('cbPersonDefaultOnFile'),
-            'cb_person_cred_hist_length': raw_data.get('cbPersonCredHistLength')
-        }
+    def predict_with_explanation(self, raw_data: dict) -> dict:
+        """
+        Make prediction with full SHAP + LIME explanations.
+        Note: LIME takes ~2-5 seconds per call. Use /predict for fast responses.
 
-    def _create_derived_features(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Create derived categorical and numerical features"""
-        # Age group
-        df['person_age'] = pd.to_numeric(df['person_age'])
-        df['age_group'] = pd.cut(
-            df['person_age'],
-            bins=[20, 26, 36, 46, 56, 66],
-            labels=['20-25', '26-35', '36-45', '46-55', '56-65'],
-            right=False,
-            include_lowest=True
-        ).astype('category')
-        
-        # Income group
-        df['person_income'] = pd.to_numeric(df['person_income'])
-        df['income_group'] = pd.cut(
-            df['person_income'],
-            bins=[0, 25000, 50000, 75000, 100000, float('inf')],
-            labels=['low', 'low-middle', 'middle', 'high-middle', 'high'],
-            right=False,
-            include_lowest=True
-        ).astype('category')
-        
-        # Loan amount group
-        df['loan_amnt'] = pd.to_numeric(df['loan_amnt'])
-        df['loan_amount_group'] = pd.cut(
-            df['loan_amnt'],
-            bins=[0, 5000, 10000, 15000, float('inf')],
-            labels=['small', 'medium', 'large', 'very large'],
-            right=False,
-            include_lowest=True
-        ).astype('category')
-        
-        # Numerical ratio features
-        df['loan_to_income_ratio'] = df['loan_amnt'] / df['person_income']
-        df['person_emp_length'] = pd.to_numeric(df['person_emp_length'])
-        df['loan_to_emp_length_ratio'] = df['person_emp_length'] / df['loan_amnt']
-        df['loan_int_rate'] = pd.to_numeric(df['loan_int_rate'])
-        df['int_rate_to_loan_amt_ratio'] = df['loan_int_rate'] / df['loan_amnt']
-        
-        return df
+        Args:
+            raw_data: Dictionary with camelCase keys from Java DTO
 
-    def _fix_categorical_columns(self, df: pd.DataFrame, ohe_columns: list) -> pd.DataFrame:
-        """Ensure categorical columns have correct categories from encoder"""
-        for col in ohe_columns:
+        Returns:
+            Dict containing prediction, risk level, SHAP values, LIME features
+        """
+        try:
+            X    = self._preprocess(raw_data)
+            prob = float(self.model.predict_proba(X)[0, 1])
+            label = bool(prob >= self.threshold)
+            risk  = ("High-Risk"   if prob >= 0.7 else
+                     "Medium-Risk" if prob >= 0.3 else "Low-Risk")
+
+            # SHAP explanation
+            sv = self.shap_explainer.shap_values(X)
+            sv = sv[1] if isinstance(sv, list) else sv
+            ev = self.shap_explainer.expected_value
+            ev = float(ev[1] if isinstance(ev, (list, np.ndarray)) else ev)
+
+            shap_values = {
+                feat: round(float(val), 5)
+                for feat, val in zip(self.feature_names, sv[0])
+            }
+
+            # LIME explanation
+            lime_result = self.lime_explainer.explain_instance(
+                data_row   = X.values[0],
+                predict_fn = lambda arr: self.model.predict_proba(arr),
+                num_features = 12,
+                top_labels   = 2,
+            )
+            lime_features = [
+                {"rule": rule, "weight": round(float(w), 5)}
+                for rule, w in lime_result.as_list(label=1)
+            ]
+
+            logger.info(f"Prediction+Explain — label={label}, prob={prob:.4f}, risk={risk}")
+            return {
+                "p_default"      : round(prob, 4),
+                "prediction"     : "Default" if label else "Non-Default",
+                "risk_level"     : risk,
+                "threshold_used" : round(self.threshold, 4),
+                "shap_base_value": round(ev, 4),
+                "shap_values"    : shap_values,
+                "lime_features"  : lime_features,
+            }
+        except Exception as e:
+            logger.error(f"Error during prediction with explanation: {e}")
+            raise
+
+    # ── Private: preprocessing ────────────────────────────────────────────
+
+    def _preprocess(self, raw_data: dict) -> pd.DataFrame:
+        """Full preprocessing pipeline matching the training notebook."""
+        df = pd.DataFrame([self._map_input(raw_data)])
+
+        # 1. Missing value imputation (values from training data)
+        for col, val in self.meta['num_medians'].items():
             if col in df.columns:
-                if df[col].dtype != 'category':
-                    try:
-                        original_categories = self.ohe_encoder.categories_[ohe_columns.index(col)]
-                        df[col] = pd.Categorical(df[col], categories=original_categories)
-                    except (ValueError, IndexError) as e:
-                        logger.warning(f"Could not set categories for column {col}: {e}")
-                        # Handle unseen categories
-                        current_cats = list(self.ohe_encoder.categories_[ohe_columns.index(col)])
-                        new_cats = [cat for cat in df[col].unique() if cat not in current_cats]
-                        df[col] = pd.Categorical(df[col], categories=current_cats + new_cats)
+                df[col] = pd.to_numeric(df[col], errors='coerce').fillna(val)
+        for col, val in self.meta['cat_modes'].items():
+            if col in df.columns:
+                df[col] = df[col].fillna(val)
+
+        # 2. Outlier clipping (1%-99% quantile bounds from training data)
+        for col, bounds in self.meta['outlier_bounds'].items():
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce').clip(bounds['lo'], bounds['hi'])
+
+        # 3. Feature engineering
+        df['loan_grade_encoded']      = df['loan_grade'].map(GRADE_MAP).fillna(3).astype(float)
+        df['historical_default_flag'] = (df['cb_person_default_on_file'] == 'Y').astype(int)
+        df['loan_to_income_ratio']    = df['loan_amnt'] / (df['person_income'] + 1)
+        df['age_income_interaction']  = df['person_age'] * df['person_income']
+        df['annual_interest_cost']    = df['loan_amnt'] * df['loan_int_rate'] / 100
+        df['interest_to_income']      = df['annual_interest_cost'] / (df['person_income'] + 1)
+        df['employment_age_ratio']    = df['person_emp_length'] / (df['person_age'] + 1)
+        df['high_loan_pct_flag']      = (df['loan_percent_income'] > 0.30).astype(int)
+        df['high_grade_flag']         = (df['loan_grade_encoded'] >= 4).astype(int)
+        df['high_interest_flag']      = (df['loan_int_rate'] > 15).astype(int)
+        df['grade_x_int_rate']        = df['loan_grade_encoded'] * df['loan_int_rate']
+        df['percent_income_loan']     = df['loan_percent_income']
+
+        # 4. Drop original categorical columns that were encoded above
+        df.drop(columns=['loan_grade', 'cb_person_default_on_file'], errors='ignore', inplace=True)
+
+        # 5. One-hot encoding
+        df = pd.get_dummies(df, columns=['person_home_ownership', 'loan_intent'])
+
+        # 6. Align to exactly the 29 columns used during training
+        df = df.reindex(columns=self.feature_names, fill_value=0)
+
+        # 7. Ensure all columns are numeric
+        df = df.apply(pd.to_numeric, errors='coerce').fillna(0)
+
         return df
 
-    def _align_with_training_columns(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Align columns with training data"""
-        # Add missing columns with 0
-        current_cols = set(df.columns)
-        for col in self.training_columns:
-            if col not in current_cols:
-                df[col] = 0
-        
-        # Drop extra columns
-        extra_cols = set(df.columns) - set(self.training_columns)
-        if extra_cols:
-            df = df.drop(columns=list(extra_cols))
-        
-        # Ensure column order matches training
-        df = df[self.training_columns]
-        
-        return df
+    def _map_input(self, raw_data: dict) -> dict:
+        """Map camelCase Java DTO keys to snake_case feature names."""
+        return {
+            'person_age'                : raw_data.get('personAge'),
+            'person_income'             : raw_data.get('personIncome'),
+            'person_home_ownership'     : raw_data.get('personHomeOwnership'),
+            'person_emp_length'         : raw_data.get('personEmpLength'),
+            'loan_intent'               : raw_data.get('loanIntent'),
+            'loan_grade'                : raw_data.get('loanGrade'),
+            'loan_amnt'                 : raw_data.get('loanAmnt'),
+            'loan_int_rate'             : raw_data.get('loanIntRate'),
+            'loan_percent_income'       : raw_data.get('loanPercentIncome'),
+            'cb_person_default_on_file' : raw_data.get('cbPersonDefaultOnFile'),
+            'cb_person_cred_hist_length': raw_data.get('cbPersonCredHistLength'),
+        }

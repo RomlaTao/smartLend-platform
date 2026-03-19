@@ -28,16 +28,15 @@ def initialize_services():
     global model_service, rabbitmq_consumer, is_ready
     
     try:
-        # Initialize Model Service
-        logger.info("Loading ML model and preprocessors...")
+        # Initialize Model Service v2 (LightGBM + SHAP + LIME)
+        logger.info("Loading ML model v2 and preprocessors...")
         model_service = ModelService(
-            model_path=config.MODEL_PATH,
-            ohe_encoder_path=config.OHE_ENCODER_PATH,
-            scaler_path=config.SCALER_PATH,
-            merge_ohe_columns_path=config.MERGE_OHE_COLUMNS_PATH,
-            training_columns_path=config.TRAINING_COLUMNS_PATH
+            lgbm_bundle_path        = config.LGBM_BUNDLE_PATH,
+            preprocessing_meta_path = config.PREPROCESSING_META_PATH,
+            shap_explainer_path     = config.SHAP_EXPLAINER_PATH,
+            lime_train_data_path    = config.LIME_TRAIN_DATA_PATH,
         )
-        logger.info("Model service initialized successfully")
+        logger.info("Model service v2 initialized successfully")
         
         # Initialize RabbitMQ Consumer
         logger.info("Connecting to RabbitMQ...")
@@ -66,6 +65,7 @@ def process_prediction_request(message: dict) -> dict:
     """
     Process prediction request from RabbitMQ.
     Request may come from PredictionService (no loanApplicationId) or LoanManagementService (with loanApplicationId).
+    Returns prediction result + SHAP/LIME explanation.
     """
     try:
         start_time = time.time()
@@ -80,8 +80,8 @@ def process_prediction_request(message: dict) -> dict:
         if not input_data:
             raise ValueError("Input data is missing")
 
-        # Make prediction
-        label, probability = model_service.predict(input_data)
+        # Make prediction with SHAP + LIME explanation
+        result = model_service.predict_with_explanation(input_data)
 
         # Calculate inference time
         inference_time_ms = int((time.time() - start_time) * 1000)
@@ -91,19 +91,26 @@ def process_prediction_request(message: dict) -> dict:
             'predictionId': prediction_id,
             'customerId': customer_id,
             'result': {
-                'label': label,
-                'probability': probability,
+                'label': result['prediction'] != 'Default',   # True = Non-Default = Safe = Approve
+                'probability': result['p_default'],
                 'modelVersion': config.MODEL_VERSION,
                 'inferenceTimeMs': inference_time_ms
+            },
+            'explanation': {
+                'riskLevel': result['risk_level'],
+                'shapBaseValue': result['shap_base_value'],
+                'shapValues': result['shap_values'],
+                'limeFeatures': result['lime_features'],
             },
             'predictedAt': datetime.now().isoformat()
         }
         if loan_application_id is not None:
             response['loanApplicationId'] = loan_application_id
 
-        logger.info(f"Prediction completed - PredictionId: {prediction_id}, "
-                    f"Label: {label}, Probability: {probability:.4f}, "
-                    f"Time: {inference_time_ms}ms, loanFlow: {loan_application_id is not None}")
+        logger.info(f"Prediction+Explain completed - PredictionId: {prediction_id}, "
+                    f"Label: {result['prediction']}, Probability: {result['p_default']:.4f}, "
+                    f"Risk: {result['risk_level']}, Time: {inference_time_ms}ms, "
+                    f"loanFlow: {loan_application_id is not None}")
 
         return response
 
@@ -160,6 +167,32 @@ def predict():
     except Exception as e:
         logger.error(f"Prediction error: {e}")
         return jsonify({'error': str(e)}), 500
+
+@app.route('/predict/explain', methods=['POST'])
+def predict_with_explain():
+    """Predict + SHAP + LIME explanation. Slower (~2-5s) — use /predict for fast responses."""
+    if not is_ready or not model_service:
+        return jsonify({'error': 'Service not ready'}), 503
+
+    try:
+        data = request.get_json(force=True)
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+
+        start_time = time.time()
+        result = model_service.predict_with_explanation(data)
+        inference_time_ms = int((time.time() - start_time) * 1000)
+
+        result['modelVersion']    = config.MODEL_VERSION
+        result['inferenceTimeMs'] = inference_time_ms
+        result['predictedAt']     = datetime.now().isoformat()
+
+        return jsonify(result), 200
+
+    except Exception as e:
+        logger.error(f"Explain prediction error: {e}")
+        return jsonify({'error': str(e)}), 500
+
 
 @app.route('/info', methods=['GET'])
 def info():

@@ -1,5 +1,6 @@
 package com.smart_lend_platform.predictionservice.services;
 
+import com.smart_lend_platform.predictionservice.dtos.PredictionExplanationDto;
 import com.smart_lend_platform.predictionservice.dtos.PredictionRequestDto;
 import com.smart_lend_platform.predictionservice.dtos.PredictionResponseDto;
 import com.smart_lend_platform.predictionservice.dtos.RegisterPredictionFromLoanRequestDto;
@@ -18,5 +19,5 @@ public interface PredictionService {
     List<PredictionResponseDto> getPredictionsByEmployeeId(UUID employeeId);
     Page<PredictionResponseDto> getAllPredictions(Pageable pageable);
     PredictionResponseDto updatePredictionStatus(UUID predictionId, String status);
-    void setPredictionResult(UUID predictionId, Boolean label, Double probability);
+    void setPredictionResult(UUID predictionId, Boolean label, Double probability, PredictionExplanationDto explanation);
 }

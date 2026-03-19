@@ -28,12 +28,11 @@ class Config:
     # Loan flow: khi request có loanApplicationId, publish thêm tới queue này để LoanManagementService nhận
     LOAN_PREDICTION_COMPLETED_ROUTING_KEY = os.getenv('LOAN_PREDICTION_COMPLETED_ROUTING_KEY', 'loan.prediction.completed')
     
-    # Model Configuration
-    MODEL_PATH = os.getenv('MODEL_PATH', 'model/final_lgbm_model.joblib')
-    OHE_ENCODER_PATH = os.getenv('OHE_ENCODER_PATH', 'model/ohe_encoder.joblib')
-    SCALER_PATH = os.getenv('SCALER_PATH', 'model/scaler_normal.joblib')
-    MERGE_OHE_COLUMNS_PATH = os.getenv('MERGE_OHE_COLUMNS_PATH', 'model/merge_ohe_col.joblib')
-    TRAINING_COLUMNS_PATH = os.getenv('TRAINING_COLUMNS_PATH', 'model/training_columns.joblib')
-    
+    # Model Configuration (v2 — LightGBM + SHAP + LIME)
+    LGBM_BUNDLE_PATH        = os.getenv('LGBM_BUNDLE_PATH',        'model/lgbm_bundle.pkl')
+    PREPROCESSING_META_PATH = os.getenv('PREPROCESSING_META_PATH', 'model/preprocessing_meta.json')
+    SHAP_EXPLAINER_PATH     = os.getenv('SHAP_EXPLAINER_PATH',     'model/shap_explainer.pkl')
+    LIME_TRAIN_DATA_PATH    = os.getenv('LIME_TRAIN_DATA_PATH',    'model/lime_train_data.npy')
+
     # Model Metadata
-    MODEL_VERSION = os.getenv('MODEL_VERSION', '1.0.0')
+    MODEL_VERSION = os.getenv('MODEL_VERSION', '2.0.0')

@@ -18,8 +18,10 @@ public class PredictionResponseDto {
     private String customerName;
     private String employeeName;
     private PredictionStatus status;
-    private Boolean predictionResult;  // Null when status is PENDING
-    private Double confidence;  // Changed to Double (nullable) - Null when status is PENDING
+    private Boolean predictionResult;
+    private Double confidence;
+    private String riskLevel;
+    private PredictionExplanationDto explanation;
     private LocalDateTime createdAt;
-    private LocalDateTime completedAt;  // Null when status is PENDING
+    private LocalDateTime completedAt;
 }

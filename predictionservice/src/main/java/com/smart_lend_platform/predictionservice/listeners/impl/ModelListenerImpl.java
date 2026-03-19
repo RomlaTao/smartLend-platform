@@ -1,5 +1,6 @@
 package com.smart_lend_platform.predictionservice.listeners.impl;
 
+import com.smart_lend_platform.predictionservice.dtos.PredictionExplanationDto;
 import com.smart_lend_platform.predictionservice.dtos.events.ModelPredictCompletedEventDto;
 import com.smart_lend_platform.predictionservice.listeners.ModelListener;
 import com.smart_lend_platform.predictionservice.services.PredictionService;
@@ -27,33 +28,25 @@ public class ModelListenerImpl implements ModelListener {
                                           @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) {
         try {
             long startTime = System.currentTimeMillis();
-
             String predictionId = event != null && event.getPredictionId() != null
                     ? event.getPredictionId().toString() : "null";
 
             log.info("[PREDICTION] Received ModelPredictCompletedEvent - PredictionId: {}, DeliveryTag: {}",
                     predictionId, deliveryTag);
 
-            if (event == null) {
-                throw new RuntimeException("Event payload is null");
-            }
-            if (event.getPredictionId() == null) {
-                throw new RuntimeException("Prediction ID is required");
-            }
-
-            if (event.getResult() == null) {
-                throw new RuntimeException("Prediction result is required");
-            }
+            if (event == null) throw new RuntimeException("Event payload is null");
+            if (event.getPredictionId() == null) throw new RuntimeException("Prediction ID is required");
+            if (event.getResult() == null) throw new RuntimeException("Prediction result is required");
 
             Boolean label = event.getResult().getLabel();
             Double probability = event.getResult().getProbability();
+            PredictionExplanationDto explanation = event.getExplanation();
 
-            log.debug("[PREDICTION] Updating prediction result - PredictionId: {}, Label: {}, Probability: {}",
-                    predictionId, label.toString(), probability);
+            log.debug("[PREDICTION] Updating prediction result - PredictionId: {}, Label: {}, Probability: {}, RiskLevel: {}",
+                    predictionId, label, probability,
+                    explanation != null ? explanation.getRiskLevel() : "N/A");
 
-            predictionService.setPredictionResult(event.getPredictionId(), label, probability);
-
-            // Luồng loan: ml-model gửi kết quả trực tiếp tới LoanManagementService (queue loan.prediction.completed). Không forward từ đây.
+            predictionService.setPredictionResult(event.getPredictionId(), label, probability, explanation);
 
             long processingTime = System.currentTimeMillis() - startTime;
 
@@ -74,7 +67,6 @@ public class ModelListenerImpl implements ModelListener {
                         predictionId, deliveryTag, e.getMessage(), e);
 
                 if (channel != null && channel.isOpen()) {
-                    // Reject và không requeue
                     channel.basicNack(deliveryTag, false, false);
                 } else {
                     log.warn("[PREDICTION] Channel is not open when nacking - PredictionId: {}, DeliveryTag: {}",

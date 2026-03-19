@@ -1,5 +1,7 @@
 package com.smart_lend_platform.predictionservice.dtos.events;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.smart_lend_platform.predictionservice.dtos.PredictionExplanationDto;
 import lombok.*;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -9,11 +11,12 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class ModelPredictCompletedEventDto {
     private UUID predictionId;
     private UUID customerId;
-
     private PredictionResultDto result;
+    private PredictionExplanationDto explanation;
     private LocalDateTime predictedAt;
 
     @Getter
@@ -21,10 +24,11 @@ public class ModelPredictCompletedEventDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class PredictionResultDto {
-        private Boolean label;         // true = approve, false = reject
-        private Double probability;    // xác suất mô hình
-        private String modelVersion;   // phiên bản mô hình đang dùng
-        private Long inferenceTimeMs;  // thời gian tính toán
+        private Boolean label;
+        private Double probability;
+        private String modelVersion;
+        private Long inferenceTimeMs;
     }
 }

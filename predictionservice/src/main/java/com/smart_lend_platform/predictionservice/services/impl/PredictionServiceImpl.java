@@ -1,5 +1,6 @@
 package com.smart_lend_platform.predictionservice.services.impl;
 
+import com.smart_lend_platform.predictionservice.dtos.PredictionExplanationDto;
 import com.smart_lend_platform.predictionservice.dtos.PredictionRequestDto;
 import com.smart_lend_platform.predictionservice.dtos.PredictionResponseDto;
 import com.smart_lend_platform.predictionservice.dtos.RegisterPredictionFromLoanRequestDto;
@@ -39,9 +40,7 @@ public class PredictionServiceImpl implements PredictionService {
         validateCreatePredictionRequest(request);
         try {
             CustomerProfileResponseDto customerProfile = customerClient.getCustomerProfileById(request.getCustomerId());
-            if (customerProfile == null) {
-                throw new RuntimeException("Fail to get customer profile");
-            }
+            if (customerProfile == null) throw new RuntimeException("Fail to get customer profile");
 
             ModelPredictRequestedEventDto.ModelInputDto modelInput = buildModelInputFromProfileAndRequest(customerProfile, request);
 
@@ -57,22 +56,18 @@ public class PredictionServiceImpl implements PredictionService {
             prediction.onCreate();
             predictionRepository.save(prediction);
 
-            // Publish event to ML model via RabbitMQ (async processing)
             try {
                 ModelPredictRequestedEventDto event = ModelPredictRequestedEventDto.builder()
                     .predictionId(predictionId)
                     .customerId(request.getCustomerId())
                     .input(modelInput)
                     .build();
-
                 predictionEventPublisher.publishModelPredictRequestedEvent(event);
             } catch (Exception publishEx) {
                 log.error("Failed to publish ModelPredictRequestedEvent for predictionId {}: {}", predictionId, publishEx.getMessage(), publishEx);
-                // Không ném lại exception để không chặn request HTTP; prediction vẫn được tạo thành công
             }
 
             return mapToResponseDto(prediction);
-
         } catch (Exception e) {
             log.error("Error creating prediction: {}", e.getMessage());
             throw new RuntimeException("Error creating prediction: " + e.getMessage(), e);
@@ -91,14 +86,11 @@ public class PredictionServiceImpl implements PredictionService {
         if (predictionRepository.findByPredictionId(request.getPredictionId()) != null) {
             throw new IllegalArgumentException("Prediction already exists for predictionId: " + request.getPredictionId());
         }
-
         try {
             RegisterPredictionFromLoanRequestDto.CustomerInfo customerInfo = request.getCustomerInfo();
             String inputDataJson;
             try {
                 inputDataJson = objectMapper.writeValueAsString(customerInfo);
-
-                // Log snapshot that will be used as model input for loan flow
                 log.info("[PREDICTION] Register-from-loan - snapshot before sending to model - predictionId={}, customerId={}, staffId={}, customerInfo={}",
                         request.getPredictionId(), request.getCustomerId(), request.getStaffId(), inputDataJson);
             } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
@@ -126,7 +118,7 @@ public class PredictionServiceImpl implements PredictionService {
     @Override
     public PredictionResponseDto getPredictionById(UUID predictionId) {
         try {
-        Prediction prediction = predictionRepository.findByPredictionId(predictionId);
+            Prediction prediction = predictionRepository.findByPredictionId(predictionId);
             return mapToResponseDto(prediction);
         } catch (Exception e) {
             log.error("Error getting prediction by id: {}", e.getMessage());
@@ -138,9 +130,7 @@ public class PredictionServiceImpl implements PredictionService {
     public List<PredictionResponseDto> getPredictionsByCustomerId(UUID customerId) {
         try {
             List<Prediction> predictions = predictionRepository.findByCustomerId(customerId);
-            return predictions.stream()
-                .map(this::mapToResponseDto)
-                .toList();
+            return predictions.stream().map(this::mapToResponseDto).toList();
         } catch (Exception e) {
             log.error("Error getting predictions by customer id: {}", e.getMessage());
             throw new RuntimeException("Error getting predictions by customer id: " + e.getMessage(), e);
@@ -151,9 +141,7 @@ public class PredictionServiceImpl implements PredictionService {
     public List<PredictionResponseDto> getPredictionsByEmployeeId(UUID employeeId) {
         try {
             List<Prediction> predictions = predictionRepository.findByEmployeeId(employeeId);
-            return predictions.stream()
-                .map(this::mapToResponseDto)
-                .toList();
+            return predictions.stream().map(this::mapToResponseDto).toList();
         } catch (Exception e) {
             log.error("Error getting predictions by employee id: {}", e.getMessage());
             throw new RuntimeException("Error getting predictions by employee id: " + e.getMessage(), e);
@@ -186,18 +174,29 @@ public class PredictionServiceImpl implements PredictionService {
     }
 
     @Override
-    public void setPredictionResult(UUID predictionId, Boolean label, Double probability) {
+    public void setPredictionResult(UUID predictionId, Boolean label, Double probability, PredictionExplanationDto explanation) {
         try {
             Prediction prediction = predictionRepository.findByPredictionId(predictionId);
             if (prediction == null) {
-                // Luồng loan: request từ LoanManagementService, PredictionService chưa có bản ghi → bỏ qua
                 log.debug("[PREDICTION] No Prediction record for predictionId {} (likely from loan flow), skipping update", predictionId);
                 return;
             }
             prediction.setPredictionResult(label);
             prediction.setConfidence(probability);
             prediction.setStatus(PredictionStatus.COMPLETED);
+
+            if (explanation != null) {
+                prediction.setRiskLevel(explanation.getRiskLevel());
+                try {
+                    prediction.setExplanationData(objectMapper.writeValueAsString(explanation));
+                } catch (Exception serEx) {
+                    log.warn("[PREDICTION] Failed to serialize explanation data for predictionId {}: {}", predictionId, serEx.getMessage());
+                }
+            }
+
             predictionRepository.save(prediction);
+            log.info("[PREDICTION] Saved prediction result - predictionId: {}, label: {}, riskLevel: {}",
+                    predictionId, label, explanation != null ? explanation.getRiskLevel() : "N/A");
         } catch (Exception e) {
             log.error("Error setting prediction result: {}", e.getMessage());
             throw new RuntimeException("Error setting prediction result: " + e.getMessage(), e);
@@ -205,21 +204,16 @@ public class PredictionServiceImpl implements PredictionService {
     }
 
     private void validateCreatePredictionRequest(PredictionRequestDto request) {
-        if (request.getCustomerId() == null) {
-            throw new RuntimeException("Customer ID is required");
-        }
+        if (request.getCustomerId() == null) throw new RuntimeException("Customer ID is required");
     }
 
     private Double convertVndToUsd(Double vndAmount) {
         Double usdAmount = currencyConverterService.convertVndToUsd(vndAmount);
-
-        // Fallback nếu service trả về giá trị không hợp lệ
         if (usdAmount == null || usdAmount <= 0) {
             if (vndAmount == null || vndAmount <= 0) {
                 log.warn("[PREDICTION] convertVndToUsd input invalid, vndAmount={}", vndAmount);
                 return 0.0;
             }
-            // Dùng tỷ giá fallback cố định khi service convert gặp lỗi
             final double fallbackRateVndPerUsd = 25000;
             usdAmount = vndAmount * 1000 / fallbackRateVndPerUsd;
             log.warn("[PREDICTION] convertVndToUsd fallback used - vndAmount={}, usdAmount={}, fallbackRate={}", 
@@ -227,17 +221,11 @@ public class PredictionServiceImpl implements PredictionService {
         } else {
             log.debug("[PREDICTION] convertVndToUsd - vndAmount={}, usdAmount={}", vndAmount, usdAmount);
         }
-
         return usdAmount;
     }
 
-    /**
-     * Đóng gói snapshot cần cho dự đoán từ profile (Customer) và request (loan params).
-     * Một nguồn duy nhất để build model input cho luồng standalone.
-     */
     private ModelPredictRequestedEventDto.ModelInputDto buildModelInputFromProfileAndRequest(
-            CustomerProfileResponseDto profile,
-            PredictionRequestDto request) {
+            CustomerProfileResponseDto profile, PredictionRequestDto request) {
         return ModelPredictRequestedEventDto.ModelInputDto.builder()
                 .customerProfileId(profile.getCustomerProfileId())
                 .customerSlug(profile.getCustomerSlug())
@@ -259,6 +247,15 @@ public class PredictionServiceImpl implements PredictionService {
     }
 
     private PredictionResponseDto mapToResponseDto(Prediction prediction) {
+        PredictionExplanationDto explanation = null;
+        if (prediction.getExplanationData() != null) {
+            try {
+                explanation = objectMapper.readValue(prediction.getExplanationData(), PredictionExplanationDto.class);
+            } catch (Exception e) {
+                log.warn("[PREDICTION] Failed to deserialize explanation data for predictionId {}: {}",
+                        prediction.getPredictionId(), e.getMessage());
+            }
+        }
         return PredictionResponseDto.builder()
             .predictionId(prediction.getPredictionId())
             .customerId(prediction.getCustomerId())
@@ -267,7 +264,9 @@ public class PredictionServiceImpl implements PredictionService {
             .status(prediction.getStatus())
             .predictionResult(prediction.getPredictionResult())
             .confidence(prediction.getConfidence())
+            .riskLevel(prediction.getRiskLevel())
+            .explanation(explanation)
             .createdAt(prediction.getCreatedAt())
             .build();
     }
-}   
+}

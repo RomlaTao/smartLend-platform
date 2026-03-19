@@ -17,3 +17,6 @@ python-dotenv==1.0.0
 
 # Testing (optional, for test scripts)
 requests==2.31.0
+
+shap==0.44.1
+lime==0.2.0.1

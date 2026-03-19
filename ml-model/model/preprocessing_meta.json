@@ -1,0 +1,70 @@
+{
+  "num_medians": {
+    "person_age": 26.0,
+    "person_income": 55000.0,
+    "person_emp_length": 4.0,
+    "loan_amnt": 8000.0,
+    "loan_int_rate": 10.99,
+    "loan_percent_income": 0.15,
+    "cb_person_cred_hist_length": 4.0
+  },
+  "cat_modes": {
+    "person_home_ownership": "RENT",
+    "loan_intent": "EDUCATION",
+    "loan_grade": "A",
+    "cb_person_default_on_file": "N"
+  },
+  "outlier_bounds": {
+    "person_age": {
+      "lo": 21.0,
+      "hi": 50.0
+    },
+    "person_income": {
+      "lo": 14400.0,
+      "hi": 225040.00000000015
+    },
+    "person_emp_length": {
+      "lo": 0.0,
+      "hi": 17.0
+    },
+    "loan_amnt": {
+      "lo": 1000.0,
+      "hi": 29800.0
+    },
+    "loan_int_rate": {
+      "lo": 5.42,
+      "hi": 18.39
+    }
+  },
+  "feature_names": [
+    "person_age",
+    "person_income",
+    "person_emp_length",
+    "loan_amnt",
+    "loan_int_rate",
+    "loan_percent_income",
+    "cb_person_cred_hist_length",
+    "loan_grade_encoded",
+    "historical_default_flag",
+    "loan_to_income_ratio",
+    "age_income_interaction",
+    "percent_income_loan",
+    "annual_interest_cost",
+    "interest_to_income",
+    "employment_age_ratio",
+    "high_loan_pct_flag",
+    "high_grade_flag",
+    "high_interest_flag",
+    "grade_x_int_rate",
+    "person_home_ownership_MORTGAGE",
+    "person_home_ownership_OTHER",
+    "person_home_ownership_OWN",
+    "person_home_ownership_RENT",
+    "loan_intent_DEBTCONSOLIDATION",
+    "loan_intent_EDUCATION",
+    "loan_intent_HOMEIMPROVEMENT",
+    "loan_intent_MEDICAL",
+    "loan_intent_PERSONAL",
+    "loan_intent_VENTURE"
+  ]
+}
