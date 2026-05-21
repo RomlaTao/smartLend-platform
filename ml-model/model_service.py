@@ -16,10 +16,10 @@ class ModelService:
     def __init__(self, lgbm_bundle_path: str, preprocessing_meta_path: str,
                  shap_explainer_path: str, lime_train_data_path: str):
         """
-        Initialize the Model Service v2 with LightGBM + SHAP + LIME.
+        Initialize the Model Service v3 with CatBoost + SHAP + LIME.
 
         Args:
-            lgbm_bundle_path:        Path to lgbm_bundle.pkl (model + threshold)
+            lgbm_bundle_path:        Path to selected_model_bundle.pkl (model + threshold)
             preprocessing_meta_path: Path to preprocessing_meta.json
             shap_explainer_path:     Path to shap_explainer.pkl
             lime_train_data_path:    Path to lime_train_data.npy

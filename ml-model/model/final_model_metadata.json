@@ -1,0 +1,46 @@
+{
+  "selected_model_name": "CatBoost",
+  "selected_threshold": 0.512,
+  "RECALL_MIN": 0.8,
+  "GA_FEATURES": [
+    "person_age",
+    "person_income",
+    "person_emp_length",
+    "loan_int_rate",
+    "loan_percent_income",
+    "loan_grade_encoded",
+    "loan_to_income_ratio",
+    "percent_income_loan",
+    "annual_interest_cost",
+    "high_loan_pct_flag",
+    "high_grade_flag",
+    "person_home_ownership_OWN",
+    "person_home_ownership_RENT",
+    "loan_intent_DEBTCONSOLIDATION",
+    "loan_intent_EDUCATION",
+    "loan_intent_HOMEIMPROVEMENT",
+    "loan_intent_MEDICAL",
+    "loan_intent_PERSONAL",
+    "loan_intent_VENTURE"
+  ],
+  "N_GA_FEATURES": 19,
+  "best_params_tuned": {
+    "learning_rate": "0.2",
+    "l2_leaf_reg": "5",
+    "iterations": "500",
+    "depth": "4",
+    "bagging_temperature": "0"
+  },
+  "test_metrics": {
+    "Accuracy": 0.9251,
+    "Precision_1": 0.848,
+    "Recall_1": 0.8003,
+    "F1_1": 0.8234,
+    "Precision_0": 0.9451,
+    "Recall_0": 0.96,
+    "F1_0": 0.9525,
+    "G-mean": 0.8765,
+    "ROC-AUC": 0.9514,
+    "Threshold": 0.512
+  }
+}
