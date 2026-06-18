@@ -36,18 +36,50 @@
       "hi": 18.39
     }
   },
+  "grade_avg_rate": {
+    "A": 7.677621247113164,
+    "B": 11.001641647652216,
+    "C": 13.220256559766764,
+    "D": 15.005613854595337,
+    "E": 16.371322207958922,
+    "F": 17.211917098445596,
+    "G": 17.716590909090908
+  },
+  "woe_maps": {
+    "loan_intent": {
+      "DEBTCONSOLIDATION": 0.35430772877095495,
+      "EDUCATION": -0.2829216991002568,
+      "HOMEIMPROVEMENT": 0.2305890128237904,
+      "MEDICAL": 0.24230544708041346,
+      "PERSONAL": -0.08755651217047437,
+      "VENTURE": -0.47287998777506435
+    },
+    "person_home_ownership": {
+      "MORTGAGE": -0.676068993541211,
+      "OTHER": 0.38445083501817495,
+      "OWN": -1.2518738051620166,
+      "RENT": 0.5103846212221731
+    },
+    "loan_grade": {
+      "A": -0.9323767611956959,
+      "B": -0.3449981529934378,
+      "C": -0.08692253834259801,
+      "D": 1.6355395801932469,
+      "E": 1.9218314840161332,
+      "F": 2.1460524922247872,
+      "G": 5.037648990016848
+    }
+  },
   "feature_names": [
     "person_age",
     "person_income",
     "person_emp_length",
+    "loan_amnt",
     "loan_int_rate",
     "loan_percent_income",
-    "loan_grade_encoded",
-    "loan_to_income_ratio",
-    "percent_income_loan",
-    "annual_interest_cost",
-    "high_loan_pct_flag",
-    "high_grade_flag",
+    "cb_person_cred_hist_length",
+    "person_home_ownership_MORTGAGE",
+    "person_home_ownership_OTHER",
     "person_home_ownership_OWN",
     "person_home_ownership_RENT",
     "loan_intent_DEBTCONSOLIDATION",
@@ -55,6 +87,11 @@
     "loan_intent_HOMEIMPROVEMENT",
     "loan_intent_MEDICAL",
     "loan_intent_PERSONAL",
-    "loan_intent_VENTURE"
+    "loan_intent_VENTURE",
+    "loan_grade_encoded",
+    "loan_to_income_ratio",
+    "high_loan_pct_flag",
+    "woe_ownership",
+    "woe_grade"
   ]
 }

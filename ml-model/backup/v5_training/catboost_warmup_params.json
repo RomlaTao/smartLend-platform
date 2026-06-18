@@ -1,0 +1,7 @@
+{
+  "learning_rate": "0.15",
+  "l2_leaf_reg": "3",
+  "iterations": "300",
+  "depth": "6",
+  "bagging_temperature": "0.5"
+}

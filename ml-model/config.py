@@ -28,11 +28,11 @@ class Config:
     # Loan flow: khi request có loanApplicationId, publish thêm tới queue này để LoanManagementService nhận
     LOAN_PREDICTION_COMPLETED_ROUTING_KEY = os.getenv('LOAN_PREDICTION_COMPLETED_ROUTING_KEY', 'loan.prediction.completed')
     
-    # Model Configuration (v3 — CatBoost + GA + SHAP + LIME)
+    # Model Configuration (v5 — LightGBM + GA + WOE + SHAP + LIME)
     LGBM_BUNDLE_PATH        = os.getenv('LGBM_BUNDLE_PATH',        'model/selected_model_bundle.pkl')
     PREPROCESSING_META_PATH = os.getenv('PREPROCESSING_META_PATH', 'model/preprocessing_meta.json')
     SHAP_EXPLAINER_PATH     = os.getenv('SHAP_EXPLAINER_PATH',     'model/shap_explainer.pkl')
     LIME_TRAIN_DATA_PATH    = os.getenv('LIME_TRAIN_DATA_PATH',    'model/lime_train_data.npy')
 
     # Model Metadata
-    MODEL_VERSION = os.getenv('MODEL_VERSION', '4.0.0')
+    MODEL_VERSION = os.getenv('MODEL_VERSION', '5.0.0')

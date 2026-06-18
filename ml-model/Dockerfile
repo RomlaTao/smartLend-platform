@@ -20,6 +20,7 @@ RUN pip install --default-timeout=1000 --no-cache-dir -r requirements.txt
 COPY app.py .
 COPY config.py .
 COPY model_service.py .
+COPY preprocessing_pipeline.py .
 COPY rabbitmq_consumer.py .
 
 # Copy model files

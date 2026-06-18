@@ -28,15 +28,15 @@ def initialize_services():
     global model_service, rabbitmq_consumer, is_ready
     
     try:
-        # Initialize Model Service v2 (LightGBM + SHAP + LIME)
-        logger.info("Loading ML model v2 and preprocessors...")
+        # Initialize Model Service v5 (LightGBM + WOE + SHAP + LIME)
+        logger.info("Loading ML model v5 and preprocessors...")
         model_service = ModelService(
             lgbm_bundle_path        = config.LGBM_BUNDLE_PATH,
             preprocessing_meta_path = config.PREPROCESSING_META_PATH,
             shap_explainer_path     = config.SHAP_EXPLAINER_PATH,
             lime_train_data_path    = config.LIME_TRAIN_DATA_PATH,
         )
-        logger.info("Model service v2 initialized successfully")
+        logger.info("Model service v5 initialized successfully")
         
         # Initialize RabbitMQ Consumer
         logger.info("Connecting to RabbitMQ...")

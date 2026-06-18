@@ -29,10 +29,14 @@ Thumbs.db
 README.md
 *.md
 
-# Test files
+# Test / export scripts
 tests/
 test_*.py
 *_test.py
+export_backend_artifacts.py
+
+# Training backups (not needed in container)
+backup/
 
 # Notebooks
 *.ipynb

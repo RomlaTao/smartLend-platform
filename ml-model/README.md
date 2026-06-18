@@ -167,12 +167,13 @@ Message format (to PredictionService):
 
 ## Model Files
 
-Các file model cần thiết trong thư mục `model/`:
-- `final_lgbm_model.joblib` - Trained LightGBM model
-- `ohe_encoder.joblib` - OneHotEncoder
-- `scaler_normal.joblib` - StandardScaler
-- `merge_ohe_col.joblib` - OHE column names
-- `training_columns.joblib` - Training column order
+Runtime artifacts in `model/` (v5 LightGBM + WOE):
+- `selected_model_bundle.pkl` — trained model + optimal threshold
+- `preprocessing_meta.json` — imputation, clip bounds, WOE maps, feature names
+- `shap_explainer.pkl` — SHAP TreeExplainer
+- `lime_train_data.npy` — LIME background data
+
+Training checkpoints are kept under `backup/` (not loaded at runtime).
 
 ## Environment Variables
 
@@ -185,7 +186,7 @@ Các file model cần thiết trong thư mục `model/`:
 | `RABBITMQ_PORT` | RabbitMQ port | `5672` |
 | `RABBITMQ_USERNAME` | RabbitMQ username | `guest` |
 | `RABBITMQ_PASSWORD` | RabbitMQ password | `guest` |
-| `MODEL_VERSION` | Model version | `1.0.0` |
+| `MODEL_VERSION` | Model version | `5.0.0` |
 
 ## Testing
 
