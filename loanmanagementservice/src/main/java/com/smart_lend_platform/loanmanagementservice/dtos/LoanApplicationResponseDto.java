@@ -30,4 +30,11 @@ public class LoanApplicationResponseDto {
     private UUID staffId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    /** Snapshot fields — data ML used at application time (from FinancialSnapshot). */
+    private Double snapshotPersonIncome;
+    private Double snapshotLoanAmnt;
+    private Double snapshotLoanPercentIncome;
+    private Integer snapshotPersonAge;
+    private String snapshotPersonHomeOwnership;
 }

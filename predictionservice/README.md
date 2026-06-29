@@ -25,7 +25,6 @@ Prefix API chính: `/api/predictions`.
   - `PredictionStatus`: `PENDING`, `COMPLETED`, `FAILED`.
   - `LoanIntent`: `PERSONAL`, `EDUCATION`, `MEDICAL`, `VENTURE`, `HOMEIMPROVEMENT`, `DEBTCONSOLIDATION`, `OTHER`.
   - `LoanGrade`: `A`, `B`, `C`, `D`, `E`, `F`, `G`.
-  - `LoanStatus`: `APPROVED`, `REJECTED`, `PENDING`.
 
 ---
 
@@ -33,21 +32,18 @@ Prefix API chính: `/api/predictions`.
 
 ### 2.1. `PredictionRequestDto` – tạo prediction trực tiếp
 
+Chỉ cần 4 field; backend tự lấy profile khách hàng và tính `loanPercentIncome` (= `loanAmnt / personIncome` VND).
+
 ```json
 {
   "customerId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-  "customerName": "Nguyen Van A",
-  "employeeId": "11111111-2222-3333-4444-555555555555",
-  "employeeName": "Tran Van Staff",
   "loanIntent": "PERSONAL",
-  "loanAmnt": 5000.0,
-  "loanIntRate": 10.5,
-  "loanStatus": "PENDING",
-  "loanPercentIncome": 0.12
+  "loanAmnt": 50000000.0,
+  "loanIntRate": 10.5
 }
 ```
 
-> Trong practice, `employeeId`/`employeeName` có thể được backend override từ `X-User-Id` và thông tin nhân viên, `customerName` có thể lấy từ CustomerService – tuỳ cách tích hợp.
+> `loanAmnt` nhập theo VND. Backend convert sang USD trước khi gửi ML model. `loanPercentIncome` được tính tự động từ profile khách hàng (cùng công thức luồng loan).
 
 ### 2.2. `RegisterPredictionFromLoanRequestDto` – đăng ký từ luồng loan
 
@@ -145,12 +141,9 @@ Khi status chuyển sang `COMPLETED`, hai field kết quả sẽ được set:
 ```json
 {
   "customerId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-  "customerName": "Nguyen Van A",
   "loanIntent": "PERSONAL",
-  "loanAmnt": 5000.0,
-  "loanIntRate": 10.5,
-  "loanStatus": "PENDING",
-  "loanPercentIncome": 0.12
+  "loanAmnt": 50000000.0,
+  "loanIntRate": 10.5
 }
 ```
 

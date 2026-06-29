@@ -211,7 +211,21 @@ public class PredictionServiceImpl implements PredictionService {
     }
 
     private void validateCreatePredictionRequest(PredictionRequestDto request) {
-        if (request.getCustomerId() == null) throw new RuntimeException("Customer ID is required");
+        if (request == null) {
+            throw new IllegalArgumentException("Request body is required");
+        }
+        if (request.getCustomerId() == null) {
+            throw new IllegalArgumentException("customerId is required");
+        }
+        if (request.getLoanIntent() == null) {
+            throw new IllegalArgumentException("loanIntent is required");
+        }
+        if (request.getLoanAmnt() == null || request.getLoanAmnt() <= 0) {
+            throw new IllegalArgumentException("loanAmnt must be a positive number");
+        }
+        if (request.getLoanIntRate() == null || request.getLoanIntRate() <= 0) {
+            throw new IllegalArgumentException("loanIntRate must be a positive number");
+        }
     }
 
     private Double convertVndToUsd(Double vndAmount) {
@@ -231,23 +245,23 @@ public class PredictionServiceImpl implements PredictionService {
         return usdAmount;
     }
 
-    private ModelPredictRequestedEventDto.ModelInputDto buildModelInputFromProfileAndRequest(
+    ModelPredictRequestedEventDto.ModelInputDto buildModelInputFromProfileAndRequest(
             CustomerProfileResponseDto profile, PredictionRequestDto request) {
+        Double personIncomeVnd = profile.getPersonIncome();
+        Double loanPercentIncome = (personIncomeVnd != null && personIncomeVnd > 0 && request.getLoanAmnt() != null)
+                ? request.getLoanAmnt() / personIncomeVnd
+                : null;
+
         return ModelPredictRequestedEventDto.ModelInputDto.builder()
-                .customerProfileId(profile.getCustomerProfileId())
-                .customerSlug(profile.getCustomerSlug())
-                .fullName(profile.getFullName())
-                .email(profile.getEmail())
                 .personAge(profile.getPersonAge())
-                .personIncome(convertVndToUsd(profile.getPersonIncome()))
-                .personHomeOwnership(profile.getPersonHomeOwnership() != null ? profile.getPersonHomeOwnership() : null)
+                .personIncome(convertVndToUsd(personIncomeVnd))
+                .personHomeOwnership(profile.getPersonHomeOwnership())
                 .personEmpLength(profile.getPersonEmpLength())
-                .loanIntent(request.getLoanIntent() != null ? request.getLoanIntent().name() : null)
+                .loanIntent(request.getLoanIntent().name())
                 .loanGrade(profile.getLoanGrade())
                 .loanAmnt(convertVndToUsd(request.getLoanAmnt()))
                 .loanIntRate(request.getLoanIntRate())
-                .loanStatus(request.getLoanStatus() != null ? request.getLoanStatus().name() : null)
-                .loanPercentIncome(request.getLoanPercentIncome())
+                .loanPercentIncome(loanPercentIncome)
                 .cbPersonDefaultOnFile(profile.getCbPersonDefaultOnFile())
                 .cbPersonCredHistLength(profile.getCbPersonCredHistLength())
                 .build();

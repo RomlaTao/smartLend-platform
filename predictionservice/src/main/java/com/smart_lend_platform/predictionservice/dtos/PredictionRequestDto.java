@@ -1,9 +1,8 @@
 package com.smart_lend_platform.predictionservice.dtos;
 
 import com.smart_lend_platform.predictionservice.enums.LoanIntent;
-import com.smart_lend_platform.predictionservice.enums.LoanGrade;
-import com.smart_lend_platform.predictionservice.enums.LoanStatus;
-
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import lombok.*;
 import java.util.UUID;
 
@@ -13,13 +12,17 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 public class PredictionRequestDto {
+    @NotNull(message = "customerId is required")
     private UUID customerId;
-    private String customerName;
-    private UUID employeeId;
-    private String employeeName;
+
+    @NotNull(message = "loanIntent is required")
     private LoanIntent loanIntent;
+
+    @NotNull(message = "loanAmnt is required")
+    @Positive(message = "loanAmnt must be positive")
     private Double loanAmnt;
+
+    @NotNull(message = "loanIntRate is required")
+    @Positive(message = "loanIntRate must be positive")
     private Double loanIntRate;
-    private LoanStatus loanStatus;
-    private Double loanPercentIncome;
 }

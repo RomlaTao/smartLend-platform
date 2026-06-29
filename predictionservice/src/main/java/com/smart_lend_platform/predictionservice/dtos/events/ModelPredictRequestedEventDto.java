@@ -19,10 +19,6 @@ public class ModelPredictRequestedEventDto {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class ModelInputDto {
-        private UUID customerProfileId;
-        private String customerSlug;
-        private String fullName;
-        private String email;
         private Integer personAge;
         private Double personIncome;
         private String personHomeOwnership;
@@ -31,7 +27,6 @@ public class ModelPredictRequestedEventDto {
         private String loanGrade;
         private Double loanAmnt;
         private Double loanIntRate;
-        private String loanStatus;
         private Double loanPercentIncome;
         private String cbPersonDefaultOnFile;
         private Integer cbPersonCredHistLength;

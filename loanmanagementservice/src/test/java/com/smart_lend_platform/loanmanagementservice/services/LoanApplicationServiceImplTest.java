@@ -3,7 +3,9 @@ package com.smart_lend_platform.loanmanagementservice.services;
 import com.smart_lend_platform.loanmanagementservice.clients.CustomerClient;
 import com.smart_lend_platform.loanmanagementservice.clients.PredictionClient;
 import com.smart_lend_platform.loanmanagementservice.dtos.UpdateLoanDecisionRequestDto;
+import com.smart_lend_platform.loanmanagementservice.entities.FinancialSnapshot;
 import com.smart_lend_platform.loanmanagementservice.entities.LoanApplication;
+import com.smart_lend_platform.loanmanagementservice.enums.HomeOwnership;
 import com.smart_lend_platform.loanmanagementservice.enums.LoanApplicationStatus;
 import com.smart_lend_platform.loanmanagementservice.enums.LoanDecision;
 import com.smart_lend_platform.loanmanagementservice.publishers.ModelPredictRequestPublisher;
@@ -131,5 +133,34 @@ class LoanApplicationServiceImplTest {
 
         assertThrows(IllegalStateException.class,
                 () -> loanApplicationService.resetPrediction(app.getId(), staffId));
+    }
+
+    @Test
+    void getById_includesSnapshotSummaryFromFinancialSnapshot() {
+        UUID snapshotId = UUID.randomUUID();
+        LoanApplication app = sampleApplication(UUID.randomUUID());
+        app.setFinancialSnapshotId(snapshotId);
+
+        FinancialSnapshot snapshot = FinancialSnapshot.builder()
+                .id(snapshotId)
+                .customerId(app.getCustomerId())
+                .customerName("Nguyen Van A")
+                .personAge(32)
+                .personIncome(2000.0)
+                .personHomeOwnership(HomeOwnership.RENT)
+                .loanAmnt(400.0)
+                .loanPercentIncome(0.2)
+                .build();
+
+        when(loanApplicationRepository.findById(app.getId())).thenReturn(Optional.of(app));
+        when(financialSnapshotRepository.findById(snapshotId)).thenReturn(Optional.of(snapshot));
+
+        var response = loanApplicationService.getById(app.getId());
+
+        assertEquals(2000.0, response.getSnapshotPersonIncome());
+        assertEquals(400.0, response.getSnapshotLoanAmnt());
+        assertEquals(0.2, response.getSnapshotLoanPercentIncome());
+        assertEquals(32, response.getSnapshotPersonAge());
+        assertEquals("RENT", response.getSnapshotPersonHomeOwnership());
     }
 }

@@ -277,6 +277,12 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     private LoanApplicationResponseDto mapToResponse(LoanApplication loanApplication) {
         String customerName = null;
         String loanGrade = null;
+        Double snapshotPersonIncome = null;
+        Double snapshotLoanAmnt = null;
+        Double snapshotLoanPercentIncome = null;
+        Integer snapshotPersonAge = null;
+        String snapshotPersonHomeOwnership = null;
+
         if (loanApplication.getFinancialSnapshotId() != null) {
             FinancialSnapshot snapshot = financialSnapshotRepository
                     .findById(loanApplication.getFinancialSnapshotId())
@@ -284,6 +290,13 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
             if (snapshot != null) {
                 customerName = snapshot.getCustomerName();
                 loanGrade = snapshot.getLoanGrade() != null ? snapshot.getLoanGrade().name() : null;
+                snapshotPersonIncome = snapshot.getPersonIncome();
+                snapshotLoanAmnt = snapshot.getLoanAmnt();
+                snapshotLoanPercentIncome = snapshot.getLoanPercentIncome();
+                snapshotPersonAge = snapshot.getPersonAge();
+                snapshotPersonHomeOwnership = snapshot.getPersonHomeOwnership() != null
+                        ? snapshot.getPersonHomeOwnership().name()
+                        : null;
             }
         }
 
@@ -305,6 +318,11 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                 .staffId(loanApplication.getStaffId())
                 .createdAt(loanApplication.getCreatedAt())
                 .updatedAt(loanApplication.getUpdatedAt())
+                .snapshotPersonIncome(snapshotPersonIncome)
+                .snapshotLoanAmnt(snapshotLoanAmnt)
+                .snapshotLoanPercentIncome(snapshotLoanPercentIncome)
+                .snapshotPersonAge(snapshotPersonAge)
+                .snapshotPersonHomeOwnership(snapshotPersonHomeOwnership)
                 .build();
     }
 }
