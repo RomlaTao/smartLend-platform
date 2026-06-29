@@ -25,6 +25,7 @@ public class LoanApplicationResponseDto {
     private LoanDecision decision;
     private LocalDateTime decisionAt;
     private Double predictionConfidence;
+    private Boolean predictionLabel;
     private LoanApplicationStatus status;
     private UUID staffId;
     private LocalDateTime createdAt;

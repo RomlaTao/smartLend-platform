@@ -35,6 +35,14 @@ public class LoanApplication {
     @Column(name = "prediction_id")
     private UUID predictionId;
 
+    /** Xác suất vỡ nợ (p_default) từ ML — đồng bộ qua loan.prediction.completed. */
+    @Column(name = "prediction_confidence")
+    private Double predictionConfidence;
+
+    /** true = Non-Default (an toàn), false = Default (rủi ro cao). */
+    @Column(name = "prediction_label")
+    private Boolean predictionLabel;
+
     @Column(name = "requested_amount", precision = 19, scale = 4, nullable = false)
     private BigDecimal requestedAmount;
 

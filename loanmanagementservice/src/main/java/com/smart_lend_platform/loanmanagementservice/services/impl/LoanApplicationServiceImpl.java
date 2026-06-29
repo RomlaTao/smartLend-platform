@@ -186,6 +186,20 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         }
 
         LoanDecision decision = request.getDecision();
+        if (decision == null || decision == LoanDecision.PENDING) {
+            throw new IllegalArgumentException("Decision must be APPROVED or REJECTED");
+        }
+
+        if (decision == LoanDecision.APPROVED) {
+            if (application.getPredictionId() == null) {
+                throw new IllegalStateException("Cannot approve: prediction has not been triggered yet.");
+            }
+            if (application.getPredictionConfidence() == null) {
+                throw new IllegalStateException(
+                        "Cannot approve: ML prediction result is still PENDING. Please wait and try again.");
+            }
+        }
+
         application.setDecision(decision);
         application.setDecisionAt(LocalDateTime.now());
         application.setStatus(decision == LoanDecision.APPROVED
@@ -196,6 +210,40 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         log.info("Staff {} manually updated decision for loan application {}: {}",
                 staffId, loanApplicationId, decision);
 
+        return mapToResponse(application);
+    }
+
+    @Override
+    @Transactional
+    public void applyPredictionResult(UUID loanApplicationId, Boolean label, Double probability) {
+        LoanApplication application = loanApplicationRepository.findById(loanApplicationId)
+                .orElseThrow(() -> new RuntimeException("Loan application not found: " + loanApplicationId));
+        application.setPredictionLabel(label);
+        application.setPredictionConfidence(probability);
+        loanApplicationRepository.save(application);
+        log.info("[LOAN] Applied prediction result - loanId: {}, label: {}, confidence: {}",
+                loanApplicationId, label, probability);
+    }
+
+    @Override
+    @Transactional
+    public LoanApplicationResponseDto resetPrediction(UUID loanApplicationId, UUID staffId) {
+        LoanApplication application = loanApplicationRepository.findById(loanApplicationId)
+                .orElseThrow(() -> new RuntimeException("Loan application not found: " + loanApplicationId));
+
+        if (!application.getStaffId().equals(staffId)) {
+            throw new RuntimeException("You are not authorized to reset this loan application");
+        }
+
+        if (application.getPredictionConfidence() != null) {
+            throw new IllegalStateException("Prediction already completed. Cannot reset.");
+        }
+
+        application.setPredictionId(null);
+        application.setPredictionLabel(null);
+        application.setPredictionConfidence(null);
+        loanApplicationRepository.save(application);
+        log.info("[LOAN] Reset prediction for loan application {}", loanApplicationId);
         return mapToResponse(application);
     }
 
@@ -251,6 +299,8 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                 .requestedInterestRate(loanApplication.getRequestedInterestRate())
                 .decision(loanApplication.getDecision())
                 .decisionAt(loanApplication.getDecisionAt())
+                .predictionConfidence(loanApplication.getPredictionConfidence())
+                .predictionLabel(loanApplication.getPredictionLabel())
                 .status(loanApplication.getStatus())
                 .staffId(loanApplication.getStaffId())
                 .createdAt(loanApplication.getCreatedAt())

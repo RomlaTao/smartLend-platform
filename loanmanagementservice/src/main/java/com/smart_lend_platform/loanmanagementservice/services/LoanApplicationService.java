@@ -2,7 +2,6 @@ package com.smart_lend_platform.loanmanagementservice.services;
 
 import com.smart_lend_platform.loanmanagementservice.dtos.LoanApplicationRequestDto;
 import com.smart_lend_platform.loanmanagementservice.dtos.LoanApplicationResponseDto;
-import com.smart_lend_platform.loanmanagementservice.dtos.events.ModelPredictCompletedMessage;
 import com.smart_lend_platform.loanmanagementservice.dtos.UpdateLoanDecisionRequestDto;
 
 import org.springframework.data.domain.Page;
@@ -33,4 +32,8 @@ public interface LoanApplicationService {
                                               UUID loanApplicationId,
                                               UpdateLoanDecisionRequestDto request,
                                               UUID staffId);
+
+    void applyPredictionResult(UUID loanApplicationId, Boolean label, Double probability);
+
+    LoanApplicationResponseDto resetPrediction(UUID loanApplicationId, UUID staffId);
 }

@@ -64,10 +64,17 @@ public class PredictionServiceImpl implements PredictionService {
                     .build();
                 predictionEventPublisher.publishModelPredictRequestedEvent(event);
             } catch (Exception publishEx) {
-                log.error("Failed to publish ModelPredictRequestedEvent for predictionId {}: {}", predictionId, publishEx.getMessage(), publishEx);
+                log.error("Failed to publish ModelPredictRequestedEvent for predictionId {}: {}",
+                        predictionId, publishEx.getMessage(), publishEx);
+                prediction.setStatus(PredictionStatus.FAILED);
+                predictionRepository.save(prediction);
+                throw new RuntimeException(
+                        "Failed to send prediction request to ML model. Please try again later.", publishEx);
             }
 
             return mapToResponseDto(prediction);
+        } catch (RuntimeException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error creating prediction: {}", e.getMessage());
             throw new RuntimeException("Error creating prediction: " + e.getMessage(), e);

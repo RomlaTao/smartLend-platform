@@ -20,6 +20,14 @@ public class LoanPredictionCompletedListenerImpl implements LoanPredictionComple
     @RabbitListener(queues = "${rabbitmq.queue.loan-prediction-completed}")
     @Transactional
     public void handleLoanPredictionCompleted(ModelPredictCompletedMessage message) {
-        // Do nothing, because model now only suggests, staff decides manually
+        if (message == null || message.getLoanApplicationId() == null || message.getResult() == null) {
+            log.warn("[LOAN] Received invalid prediction completed message, skipping");
+            return;
+        }
+        loanApplicationService.applyPredictionResult(
+                message.getLoanApplicationId(),
+                message.getResult().getLabel(),
+                message.getResult().getProbability()
+        );
     }
 }

@@ -36,6 +36,13 @@ public class LoanApplicationController {
         return ResponseEntity.ok(loanApplicationService.triggerPrediction(id, staffId));
     }
 
+    @PostMapping("/id/{id}/reset-prediction")
+    public ResponseEntity<LoanApplicationResponseDto> resetPrediction(
+            @PathVariable(name = "id") UUID id,
+            @RequestHeader("X-User-Id") UUID staffId) {
+        return ResponseEntity.ok(loanApplicationService.resetPrediction(id, staffId));
+    }
+
     @PostMapping("/id/{id}/decision")
     public ResponseEntity<LoanApplicationResponseDto> updateDecision(
             @PathVariable(name = "id") UUID loanApplicationId,
