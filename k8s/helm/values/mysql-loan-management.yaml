@@ -1,0 +1,28 @@
+fullnameOverride: mysql-loan-management
+global:
+  security:
+    allowInsecureImages: true
+image:
+  registry: docker.io
+  repository: bitnamilegacy/mysql
+volumePermissions:
+  enabled: true
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/os-shell
+auth:
+  database: loanmanagementservice
+  username: loanmanagementservice
+  existingSecret: mysql-loan-management-secrets
+primary:
+  persistence:
+    enabled: true
+    size: 5Gi
+    storageClass: local-path
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 100m
+    limits:
+      memory: 512Mi
+      cpu: 500m

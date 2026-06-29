@@ -1,0 +1,6 @@
+# Shell scripts must use LF (Linux/WSL/k3s host)
+*.sh text eol=lf
+scripts/teardown-smartlend.sh text eol=lf
+scripts/redeploy-from-scratch.sh text eol=lf
+scripts/import-bitnami-mysql-images.sh text eol=lf
+scripts/helm-upgrade-mysql.sh text eol=lf

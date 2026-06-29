@@ -1,0 +1,38 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: smartlend
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - infra/redis-pvc.yaml
+  - infra/redis.yaml
+  - infra/rabbitmq-pvc.yaml
+  - infra/rabbitmq.yaml
+  - apps/currencyservice.yaml
+  - apps/identityservice.yaml
+  - apps/customerservice.yaml
+  - apps/predictionservice.yaml
+  - apps/loanmanagementservice.yaml
+  - apps/ml-model-service.yaml
+  - apps/apigateway.yaml
+  - apps/frontend.yaml
+
+images:
+  - name: smartlend/apigateway
+    newTag: dev
+  - name: smartlend/identityservice
+    newTag: dev
+  - name: smartlend/customerservice
+    newTag: dev
+  - name: smartlend/predictionservice
+    newTag: dev
+  - name: smartlend/loanmanagementservice
+    newTag: dev
+  - name: smartlend/currencyservice
+    newTag: dev
+  - name: smartlend/ml-model-service
+    newTag: dev
+  - name: smartlend/frontend
+    newTag: dev

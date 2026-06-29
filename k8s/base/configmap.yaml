@@ -1,0 +1,68 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: smartlend-config
+  namespace: smartlend
+data:
+  MODEL_VERSION: "5.0.0"
+
+  # Inter-service URLs (CoreDNS short names, same namespace)
+  CUSTOMER_SERVICE_URL: "http://customerservice:8006"
+  PREDICTION_SERVICE_URL: "http://predictionservice:8007"
+  CURRENCY_SERVICE_URL: "http://currencyservice:8011"
+
+  CURRENCY_API_URL: "https://api.exchangerate-api.com/v4/latest/USD"
+  CURRENCY_FALLBACK_RATE: "25000.0"
+  CURRENCY_UPDATE_INTERVAL: "3600000"
+
+  CORS_ALLOWED_ORIGINS: "http://smartlend.local"
+
+  SPRING_DATA_REDIS_HOST: "smart-lend-redis"
+  SPRING_DATA_REDIS_PORT: "6379"
+
+  # RabbitMQ — RABBITMQ_* (Spring apps k8s profile) + SPRING_RABBITMQ_* (legacy identity/customer base properties)
+  RABBITMQ_HOST: "smart-lend-rabbitmq"
+  RABBITMQ_PORT: "5672"
+  RABBITMQ_VIRTUAL_HOST: "/"
+  SPRING_RABBITMQ_HOST: "smart-lend-rabbitmq"
+  SPRING_RABBITMQ_PORT: "5672"
+
+  # RabbitMQ — PredictionService + LoanManagementService
+  RABBITMQ_EXCHANGE_MODEL_PREDICT: "model.predict.exchange"
+  RABBITMQ_QUEUE_MODEL_PREDICT_REQUESTED: "model.predict.requested"
+  RABBITMQ_ROUTING_KEY_MODEL_PREDICT_REQUESTED: "model.predict.requested"
+  RABBITMQ_QUEUE_MODEL_PREDICT_COMPLETED: "model.predict.completed"
+  RABBITMQ_ROUTING_KEY_MODEL_PREDICT_COMPLETED: "model.predict.completed"
+
+  RABBITMQ_EXCHANGE_LOAN_PREDICTION: "loan.prediction.exchange"
+  RABBITMQ_ROUTING_KEY_LOAN_PREDICTION_REQUESTED: "loan.prediction.requested"
+  RABBITMQ_ROUTING_KEY_LOAN_PREDICTION_COMPLETED: "loan.prediction.completed"
+  RABBITMQ_QUEUE_LOAN_PREDICTION_COMPLETED: "loan.prediction.completed"
+
+  # ml-model (also consumed by ml-model-service via envFrom)
+  MODEL_PREDICT_REQUESTED_EXCHANGE: "model.predict.exchange"
+  MODEL_PREDICT_REQUESTED_QUEUE: "model.predict.requested"
+  MODEL_PREDICT_REQUESTED_ROUTING_KEY: "model.predict.requested"
+  MODEL_PREDICT_COMPLETED_EXCHANGE: "model.predict.exchange"
+  MODEL_PREDICT_COMPLETED_QUEUE: "model.predict.completed"
+  MODEL_PREDICT_COMPLETED_ROUTING_KEY: "model.predict.completed"
+  LOAN_PREDICTION_COMPLETED_ROUTING_KEY: "loan.prediction.completed"
+
+  # ML model artifact paths (relative to container workdir)
+  LGBM_BUNDLE_PATH: "model/selected_model_bundle.pkl"
+  PREPROCESSING_META_PATH: "model/preprocessing_meta.json"
+  SHAP_EXPLAINER_PATH: "model/shap_explainer.pkl"
+  LIME_TRAIN_DATA_PATH: "model/lime_train_data.npy"
+
+  # JDBC datasource URLs (username in ConfigMap; password in Secret)
+  IDENTITY_DB_URL: "jdbc:mysql://mysql-identity:3306/identityservice?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&createDatabaseIfNotExist=true"
+  IDENTITY_DB_USERNAME: "identityuser"
+
+  CUSTOMER_DB_URL: "jdbc:mysql://mysql-customer:3306/customerservice?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&createDatabaseIfNotExist=true"
+  CUSTOMER_DB_USERNAME: "customerservice"
+
+  PREDICTION_DB_URL: "jdbc:mysql://mysql-prediction:3306/predictionservice?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&createDatabaseIfNotExist=true"
+  PREDICTION_DB_USERNAME: "predictionservice"
+
+  LOAN_MANAGEMENT_DB_URL: "jdbc:mysql://mysql-loan-management:3306/loanmanagementservice?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&createDatabaseIfNotExist=true"
+  LOAN_MANAGEMENT_DB_USERNAME: "loanmanagementservice"

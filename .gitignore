@@ -35,6 +35,8 @@ build/
 
 ### Environment Variables
 .env
+k8s/base/secrets.yaml
+k8s/base/mysql-secrets.yaml
 
 # Maven
 .mvn/
