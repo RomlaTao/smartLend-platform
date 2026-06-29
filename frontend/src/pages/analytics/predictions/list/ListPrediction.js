@@ -7,6 +7,7 @@ import { getAllPredictions, createPrediction } from '/src/services/prediction.se
 import { loadAndRenderPrediction, renderLoadingSkeleton, startPredictionPolling, stopPredictionPolling } from '/src/pages/loan/predict/prediction-result-renderer.js';
 import { loadAndRenderMyProfile } from '/src/pages/share/my-profile/my-profile-renderer.js';
 import { loadAndRenderEditMyProfileForm, submitEditMyProfileForm, showEditMyProfileError } from '/src/pages/share/edit-my-profile/edit-my-profile-renderer.js';
+import { showConfirm } from '/src/utils/notify.js';
 
 const ACCESS_TOKEN_KEY = 'smartlend_access_token';
 const ROLE_KEY        = 'smartlend_role';
@@ -445,6 +446,12 @@ window.switchMyProfileToViewMode = async function() {
 };
 
 window.saveMyProfile = async function() {
+    const confirmed = await showConfirm('Bạn có chắc muốn cập nhật thông tin hồ sơ?', {
+        confirmText: 'Cập nhật',
+        cancelText: 'Hủy',
+    });
+    if (!confirmed) return;
+
     const saveBtn = document.getElementById('mp-save-btn');
     if (saveBtn) { saveBtn.disabled = true; saveBtn.innerHTML = '<span class="material-symbols-outlined text-base animate-spin">progress_activity</span> Đang lưu...'; }
     const { accessToken, userId } = _mpGetAuth();
@@ -704,24 +711,9 @@ function init() {
     loadPredictions(0);
   });
 
-  // Close my profile modal when clicking outside
-  document.getElementById('my-profile-modal')?.addEventListener('click', (e) => {
-    if (e.target.id === 'my-profile-modal') window.closeMyProfileModal();
-  });
-
-  // Close prediction modal when clicking outside
-  document.getElementById('prediction-result-modal')?.addEventListener('click', (e) => {
-    if (e.target.id === 'prediction-result-modal') window.closePredictionModal();
-  });
-
   // Create prediction button
   document.getElementById('create-prediction-btn')?.addEventListener('click', () => {
     window.openCreatePredictionModal();
-  });
-
-  // Close create prediction modal when clicking outside
-  document.getElementById('create-prediction-modal')?.addEventListener('click', (e) => {
-    if (e.target.id === 'create-prediction-modal') window.closeCreatePredictionModal();
   });
 }
 

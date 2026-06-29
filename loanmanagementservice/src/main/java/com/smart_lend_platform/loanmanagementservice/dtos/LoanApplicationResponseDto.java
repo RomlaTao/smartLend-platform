@@ -17,6 +17,8 @@ public class LoanApplicationResponseDto {
     private UUID customerId;
     private String customerName;
     private String loanGrade;
+    /** Mục đích vay tại thời điểm nộp đơn (từ FinancialSnapshot). */
+    private String loanIntent;
     private UUID financialSnapshotId;
     private UUID predictionId;
     private BigDecimal requestedAmount;

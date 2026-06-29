@@ -7,6 +7,13 @@
 import { getAllUsers, signup } from '/src/services/identity.service.js';
 import { loadAndRenderEditForm, submitEditForm, showEditFormError } from '/src/pages/users/edit/edit-profile-renderer.js';
 import { loadAndRenderProfileById } from '/src/pages/share/my-profile/my-profile-renderer.js';
+import { showConfirm } from '/src/utils/notify.js';
+import {
+  EMPTY_LABEL,
+  formatDateVi,
+  formatUserRole,
+  orEmpty,
+} from '/src/utils/formatter.js';
 
 const ACCESS_TOKEN_KEY = 'smartlend_access_token';
 const ROLE_KEY = 'smartlend_role';
@@ -16,6 +23,7 @@ const LOGIN_URL = '/src/pages/share/login/login.html';
 
 let currentPage = 0;
 let totalPages = 0;
+let totalElements = 0;
 let pageSize = 10;
 
 function getStoredValue(key) {
@@ -55,25 +63,21 @@ function requireAdmin() {
 }
 
 function formatDate(dateString) {
-  if (!dateString) return 'N/A';
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', { 
-    year: 'numeric', 
-    month: 'short', 
-    day: 'numeric'
-  });
+  return formatDateVi(dateString);
 }
 
 function getRoleBadge(role) {
-  switch ((role || '').toUpperCase()) {
+  const key = (role || '').toUpperCase();
+  const label = formatUserRole(key);
+  switch (key) {
     case 'ADMIN':
-      return '<span class="bg-purple-100 text-purple-700 px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase tracking-tighter">Admin</span>';
+      return `<span class="bg-purple-100 text-purple-700 px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase tracking-tighter">${label}</span>`;
     case 'ANALYSTIC':
-      return '<span class="bg-indigo-100 text-indigo-700 px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase tracking-tighter">Analystic</span>';
+      return `<span class="bg-indigo-100 text-indigo-700 px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase tracking-tighter">${label}</span>`;
     case 'STAFF':
-      return '<span class="bg-blue-100 text-blue-700 px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase tracking-tighter">Staff</span>';
+      return `<span class="bg-blue-100 text-blue-700 px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase tracking-tighter">${label}</span>`;
     default:
-      return '<span class="bg-gray-100 text-gray-500 px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase tracking-tighter">' + (role || 'Unknown') + '</span>';
+      return `<span class="bg-gray-100 text-gray-500 px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase tracking-tighter">${label}</span>`;
   }
 }
 
@@ -84,17 +88,17 @@ function renderUserRow(user) {
 
   return `
     <tr class="hover:bg-gray-50/80 transition-colors">
-      <td class="px-6 py-4 font-bold text-gray-900">${user.fullName || 'N/A'}</td>
-      <td class="px-6 py-4 text-gray-500 font-medium">${user.email || 'N/A'}</td>
+      <td class="px-6 py-4 font-bold text-gray-900">${orEmpty(user.fullName)}</td>
+      <td class="px-6 py-4 text-gray-500 font-medium">${orEmpty(user.email)}</td>
       <td class="px-6 py-4">${getRoleBadge(user.role)}</td>
-      <td class="px-6 py-4 text-gray-500 font-medium">${user.department || 'N/A'}</td>
+      <td class="px-6 py-4 text-gray-500 font-medium">${orEmpty(user.department)}</td>
       <td class="px-6 py-4">${statusBadge}</td>
       <td class="px-6 py-4 text-gray-500 font-medium">${formatDate(user.createdAt)}</td>
       <td class="px-6 py-4">
         <div class="flex justify-center gap-1">
-          <button onclick="openViewProfileModal('${user.userId}')" class="w-8 h-8 flex items-center justify-center hover:bg-blue-50 text-gray-400 hover:text-primary rounded-lg transition-colors" title="View profile"><span class="material-symbols-outlined text-[20px]">visibility</span></button>
-          <button onclick="openEditProfileModal('${user.userId}')" class="w-8 h-8 flex items-center justify-center hover:bg-blue-50 text-gray-400 hover:text-primary rounded-lg transition-colors" title="Edit profile"><span class="material-symbols-outlined text-[20px]">edit</span></button>
-          <button class="w-8 h-8 flex items-center justify-center hover:bg-red-50 text-gray-400 hover:text-red-600 rounded-lg transition-colors" title="Lock/Unlock user"><span class="material-symbols-outlined text-[20px]">${user.isActive ? 'lock' : 'lock_open'}</span></button>
+          <button onclick="openViewProfileModal('${user.userId}')" class="w-8 h-8 flex items-center justify-center hover:bg-blue-50 text-gray-400 hover:text-primary rounded-lg transition-colors" title="Xem hồ sơ"><span class="material-symbols-outlined text-[20px]">visibility</span></button>
+          <button onclick="openEditProfileModal('${user.userId}')" class="w-8 h-8 flex items-center justify-center hover:bg-blue-50 text-gray-400 hover:text-primary rounded-lg transition-colors" title="Chỉnh sửa hồ sơ"><span class="material-symbols-outlined text-[20px]">edit</span></button>
+          <button class="w-8 h-8 flex items-center justify-center hover:bg-red-50 text-gray-400 hover:text-red-600 rounded-lg transition-colors" title="${user.isActive ? 'Khóa người dùng' : 'Mở khóa người dùng'}"><span class="material-symbols-outlined text-[20px]">${user.isActive ? 'lock' : 'lock_open'}</span></button>
         </div>
       </td>
     </tr>
@@ -136,25 +140,82 @@ async function loadUsers(page = 0) {
       renderUsers(response.content);
       currentPage = response.number || 0;
       totalPages = response.totalPages || 0;
+      totalElements = response.totalElements || 0;
       updatePagination();
     }
   } catch (error) {
     console.error('Error loading users:', error);
-    alert('Failed to load users: ' + (error.message || 'Unknown error'));
+    alert('Không thể tải danh sách người dùng: ' + (error.message || 'Lỗi không xác định'));
   }
 }
 
 function updatePagination() {
-  // Update pagination info
-  const paginationInfo = document.querySelector('.text-xs.font-semibold.text-gray-500');
+  const paginationInfo = document.getElementById('user-pagination-info');
   if (paginationInfo) {
-    const start = currentPage * pageSize + 1;
-    const end = Math.min((currentPage + 1) * pageSize, totalPages * pageSize);
-    paginationInfo.innerHTML = `Hiển thị <span class="text-gray-900">${start} - ${end}</span> trong <span class="text-gray-900">${totalPages * pageSize}</span> kết quả`;
+    if (totalElements === 0) {
+      paginationInfo.innerHTML = 'Không có bản ghi';
+    } else {
+      const start = currentPage * pageSize + 1;
+      const end = Math.min((currentPage + 1) * pageSize, totalElements);
+      paginationInfo.innerHTML = `Hiển thị <span class="text-gray-900">${start} - ${end}</span> trong <span class="text-gray-900">${totalElements}</span> bản ghi`;
+    }
+  }
+  renderPaginationControls();
+}
+
+function generatePageButtons() {
+  if (totalPages <= 0) return '';
+
+  let buttons = '';
+  const maxButtons = 3;
+  let startPage = Math.max(0, currentPage - Math.floor(maxButtons / 2));
+  let endPage = Math.min(totalPages - 1, startPage + maxButtons - 1);
+
+  if (endPage - startPage < maxButtons - 1) {
+    startPage = Math.max(0, endPage - maxButtons + 1);
   }
 
-  // TODO: Update pagination buttons
+  for (let i = startPage; i <= endPage; i++) {
+    buttons += `
+      <button
+        onclick="window.goToUserPage(${i})"
+        class="w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-all ${i === currentPage ? 'bg-primary text-white shadow-sm shadow-primary/20' : 'border border-transparent text-gray-600 hover:bg-white hover:border-gray-200'}">
+        ${i + 1}
+      </button>`;
+  }
+  return buttons;
 }
+
+function renderPaginationControls() {
+  const container = document.getElementById('user-pagination-controls');
+  if (!container) return;
+
+  if (totalPages <= 1) {
+    container.innerHTML = '';
+    return;
+  }
+
+  container.innerHTML = `
+    <button
+      onclick="window.goToUserPage(${currentPage - 1})"
+      class="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-white hover:text-primary transition-all disabled:opacity-30"
+      ${currentPage === 0 ? 'disabled' : ''}>
+      <span class="material-symbols-outlined text-xl">chevron_left</span>
+    </button>
+    ${generatePageButtons()}
+    <button
+      onclick="window.goToUserPage(${currentPage + 1})"
+      class="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-white hover:text-primary transition-all disabled:opacity-30"
+      ${currentPage >= totalPages - 1 ? 'disabled' : ''}>
+      <span class="material-symbols-outlined text-xl">chevron_right</span>
+    </button>`;
+}
+
+window.goToUserPage = function(page) {
+  if (page < 0 || page >= totalPages) return;
+  currentPage = page;
+  loadUsers(page);
+};
 
 async function handleCreateUser(e) {
   e.preventDefault();
@@ -190,7 +251,7 @@ async function handleCreateUser(e) {
   try {
     const accessToken = getAccessToken();
     if (!accessToken) {
-      formError.textContent = 'Access token not found. Please login again.';
+      formError.textContent = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
       formError.classList.remove('hidden');
       setTimeout(() => window.location.replace(LOGIN_URL), 1500);
       return;
@@ -217,7 +278,7 @@ async function handleCreateUser(e) {
     loadUsers(currentPage);
   } catch (error) {
     console.error('Error creating user:', error);
-    formError.textContent = error.message || 'Failed to create user';
+    formError.textContent = error.message || 'Không thể tạo người dùng';
     formError.classList.remove('hidden');
   }
 }
@@ -262,7 +323,7 @@ window.openViewProfileModal = async function(userId) {
         body.innerHTML = `
             <div class="flex flex-col items-center gap-2 py-12">
                 <span class="material-symbols-outlined text-3xl text-red-400">error</span>
-                <p class="text-sm text-red-500 font-semibold">${err.message || 'Failed to load profile'}</p>
+                <p class="text-sm text-red-500 font-semibold">${err.message || 'Không thể tải hồ sơ'}</p>
             </div>`;
     }
 };
@@ -300,7 +361,7 @@ window.openEditProfileModal = async function(userId) {
 
     try {
         const accessToken = getAccessToken();
-        if (!accessToken) throw new Error('Not authenticated');
+        if (!accessToken) throw new Error('Chưa đăng nhập');
         await loadAndRenderEditForm(userId, accessToken, containerEl);
         loadingEl?.classList.add('hidden');
         containerEl?.classList.remove('hidden');
@@ -309,7 +370,7 @@ window.openEditProfileModal = async function(userId) {
         console.error('Error loading edit form:', err);
         loadingEl?.classList.add('hidden');
         const msgEl = document.getElementById('ep-error-message');
-        if (msgEl) msgEl.textContent = err.message || 'Failed to load profile';
+        if (msgEl) msgEl.textContent = err.message || 'Không thể tải hồ sơ';
         errorEl?.classList.remove('hidden');
     }
 };
@@ -326,6 +387,12 @@ window.closeEditProfileModal = function() {
 window.submitEditProfileModal = async function() {
     if (!_editModalUserId) return;
 
+    const confirmed = await showConfirm('Bạn có chắc muốn cập nhật thông tin người dùng này?', {
+        confirmText: 'Cập nhật',
+        cancelText: 'Hủy',
+    });
+    if (!confirmed) return;
+
     const saveBtn = document.querySelector('#edit-profile-modal button[onclick="submitEditProfileModal()"]');
     if (saveBtn) {
         saveBtn.disabled = true;
@@ -334,14 +401,14 @@ window.submitEditProfileModal = async function() {
 
     try {
         const accessToken = getAccessToken();
-        if (!accessToken) throw new Error('Not authenticated');
+        if (!accessToken) throw new Error('Chưa đăng nhập');
         await submitEditForm(accessToken, _editModalUserId);
         window.closeEditProfileModal();
         alert('Cập nhật hồ sơ thành công!');
         loadUsers(currentPage);
     } catch (err) {
         if (err.message !== 'Validation failed') {
-            showEditFormError(err.message || 'Failed to update profile');
+            showEditFormError(err.message || 'Không thể cập nhật hồ sơ');
         }
     } finally {
         if (saveBtn) {
@@ -362,16 +429,6 @@ function init() {
   if (createUserForm) {
     createUserForm.addEventListener('submit', handleCreateUser);
   }
-
-  // Close view profile modal when clicking outside
-  document.getElementById('view-profile-modal')?.addEventListener('click', (e) => {
-    if (e.target.id === 'view-profile-modal') window.closeViewProfileModal();
-  });
-
-  // Close edit profile modal when clicking outside
-  document.getElementById('edit-profile-modal')?.addEventListener('click', (e) => {
-    if (e.target.id === 'edit-profile-modal') window.closeEditProfileModal();
-  });
 
   // Logout functionality
   document.getElementById('admin-logout-link')?.addEventListener('click', (e) => {

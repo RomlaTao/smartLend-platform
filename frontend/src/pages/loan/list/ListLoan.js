@@ -2,6 +2,8 @@
 import {
     getAllLoanApplications,
     getLoanApplicationById,
+    getFinancialSnapshotById,
+    getFinancialSnapshotsByCustomerId,
     triggerLoanPrediction,
     resetLoanPrediction,
     updateLoanApplicationDecision,
@@ -10,6 +12,21 @@ import { getCustomerById } from '/src/services/customer.service.js';
 import { getPredictionById } from '/src/services/prediction.service.js';
 import { getCurrentProfile } from '/src/services/identity.service.js';
 import { showToast, showConfirm } from '/src/utils/notify.js';
+import { formatLoanIntentLabel, attachLoanIntent } from '/src/utils/loanIntent.js';
+import {
+    EMPTY_LABEL,
+    formatCurrencyVnd,
+    formatDateVi,
+    formatLoanDecision,
+    formatLoanGradeLabel,
+    formatLoanStatus,
+    orEmpty,
+} from '/src/utils/formatter.js';
+
+const loanIntentApi = {
+    getFinancialSnapshotById,
+    getFinancialSnapshotsByCustomerId,
+};
 import {
     loadAndRenderPrediction,
     renderLoadingSkeleton,
@@ -34,7 +51,7 @@ const LOGIN_URL = '/src/pages/share/login/login.html';
 const ROLE_LABELS = {
     'STAFF': 'Nhân viên',
     'ADMIN': 'Quản trị viên',
-    'ANALYSTIC': 'Analyst',
+    'ANALYSTIC': 'Phân tích viên',
 };
 
 function getStoredValue(key) {
@@ -119,20 +136,14 @@ function getStatusBadge(status) {
     return statusMap[status] || 'bg-gray-100 dark:bg-gray-900/30 text-gray-700 dark:text-gray-400';
 }
 
-// Format currency
+// Format currency — dùng formatter chung
 function formatCurrency(amount) {
-    return new Intl.NumberFormat('vi-VN', {
-        style: 'currency',
-        currency: 'VND',
-        minimumFractionDigits: 0
-    }).format(amount);
+    return formatCurrencyVnd(amount);
 }
 
-// Format date
+// Format date theo định dạng Việt Nam
 function formatDate(dateString) {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    return formatDateVi(dateString);
 }
 
 // Open loan detail modal
@@ -154,6 +165,7 @@ async function openLoanModal(loanId) {
     try {
         // Fetch loan and customer data
         const loan = await getLoanApplicationById(loanId);
+        await attachLoanIntent(loan, loanIntentApi);
         const customer = await getCustomerById(loan.customerId);
 
         let prediction = null;
@@ -182,7 +194,7 @@ async function openLoanModal(loanId) {
 // Render loan modal content
 function renderLoanModal(loan, customer, prediction) {
     const modalBody = document.getElementById('loan-modal-body');
-    const loanId = loan.id ? loan.id.substring(0, 8) : 'N/A';
+    const loanId = loan.id ? loan.id.substring(0, 8) : EMPTY_LABEL;
 
     const hasPredictionResult =
         (prediction && prediction.predictionResult !== null && prediction.predictionResult !== undefined)
@@ -202,7 +214,7 @@ function renderLoanModal(loan, customer, prediction) {
     const predictionConfidenceText =
         effectiveConfidence != null
             ? (effectiveConfidence * 100).toFixed(1) + '%'
-            : 'N/A';
+            : EMPTY_LABEL;
     
     modalBody.innerHTML = `
         <div class="space-y-6">
@@ -213,12 +225,12 @@ function renderLoanModal(loan, customer, prediction) {
                         <span class="material-symbols-outlined text-primary text-2xl">description</span>
                     </div>
                     <div>
-                        <h3 class="text-lg font-bold text-gray-900 dark:text-white">Loan #${loanId}</h3>
-                        <p class="text-sm text-gray-500">Tạo lúc ${formatDate(loan.createdAt)}</p>
+                        <h3 class="text-lg font-bold text-gray-900 dark:text-white">Khoản vay #${loanId}</h3>
+                        <p class="text-sm text-gray-500">Tạo ngày ${formatDate(loan.createdAt)}</p>
                     </div>
                 </div>
                 <span class="px-3 py-1 ${getStatusBadge(loan.status)} text-[10px] font-bold rounded-full uppercase tracking-wider">
-                    ${loan.status || 'N/A'}
+                    ${formatLoanStatus(loan.status)}
                 </span>
             </div>
             
@@ -228,19 +240,19 @@ function renderLoanModal(loan, customer, prediction) {
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <p class="text-xs text-gray-500">Họ và tên</p>
-                        <p class="text-sm font-semibold text-gray-900 dark:text-white">${customer?.fullName || 'N/A'}</p>
+                        <p class="text-sm font-semibold text-gray-900 dark:text-white">${orEmpty(customer?.fullName)}</p>
                     </div>
                     <div>
                         <p class="text-xs text-gray-500">Email</p>
-                        <p class="text-sm font-semibold text-gray-900 dark:text-white">${customer?.email || 'N/A'}</p>
+                        <p class="text-sm font-semibold text-gray-900 dark:text-white">${orEmpty(customer?.email)}</p>
                     </div>
                     <div>
                         <p class="text-xs text-gray-500">Tuổi</p>
-                        <p class="text-sm font-semibold text-gray-900 dark:text-white">${customer?.personAge || 'N/A'}</p>
+                        <p class="text-sm font-semibold text-gray-900 dark:text-white">${customer?.personAge != null ? `${customer.personAge} tuổi` : EMPTY_LABEL}</p>
                     </div>
                     <div>
                         <p class="text-xs text-gray-500">Thu nhập</p>
-                        <p class="text-sm font-semibold text-gray-900 dark:text-white">${customer?.personIncome ? formatCurrency(customer.personIncome) : 'N/A'}</p>
+                        <p class="text-sm font-semibold text-gray-900 dark:text-white">${customer?.personIncome != null ? formatCurrency(customer.personIncome) : EMPTY_LABEL}</p>
                     </div>
                 </div>
             </div>
@@ -255,16 +267,20 @@ function renderLoanModal(loan, customer, prediction) {
                     </div>
                     <div>
                         <p class="text-xs text-gray-500">Kỳ hạn</p>
-                        <p class="text-lg font-bold text-gray-900 dark:text-white">${loan.requestedTermMonths || 'N/A'} tháng</p>
+                        <p class="text-lg font-bold text-gray-900 dark:text-white">${loan.requestedTermMonths != null ? loan.requestedTermMonths : EMPTY_LABEL} tháng</p>
                     </div>
                     <div>
                         <p class="text-xs text-gray-500">Lãi suất</p>
-                        <p class="text-lg font-bold text-gray-900 dark:text-white">${loan.requestedInterestRate || 'N/A'}%</p>
+                        <p class="text-lg font-bold text-gray-900 dark:text-white">${loan.requestedInterestRate != null ? `${loan.requestedInterestRate}%` : EMPTY_LABEL}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500">Mục đích vay</p>
+                        <p class="text-sm font-semibold text-gray-900 dark:text-white">${formatLoanIntentLabel(loan.loanIntent)}</p>
                     </div>
                     <div>
                         <p class="text-xs text-gray-500">Hạng tín dụng</p>
                         <p class="text-lg font-bold">
-                            <span class="px-2.5 py-1 ${getGradeBadge(customer?.loanGrade)} text-xs font-bold rounded-full">${customer?.loanGrade || 'N/A'}</span>
+                            <span class="px-2.5 py-1 ${getGradeBadge(customer?.loanGrade)} text-xs font-bold rounded-full">${customer?.loanGrade || EMPTY_LABEL}</span>
                         </p>
                     </div>
                 </div>
@@ -303,11 +319,11 @@ function renderLoanModal(loan, customer, prediction) {
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <p class="text-xs text-gray-500">Kết quả</p>
-                        <p class="text-sm font-semibold text-gray-900 dark:text-white">${loan.decision}</p>
+                        <p class="text-sm font-semibold text-gray-900 dark:text-white">${formatLoanDecision(loan.decision)}</p>
                     </div>
                     <div>
                         <p class="text-xs text-gray-500">Xác suất vỡ nợ</p>
-                        <p class="text-sm font-semibold text-gray-900 dark:text-white">${loan.predictionConfidence ? (loan.predictionConfidence * 100).toFixed(2) + '%' : 'N/A'}</p>
+                        <p class="text-sm font-semibold text-gray-900 dark:text-white">${loan.predictionConfidence != null ? (loan.predictionConfidence * 100).toFixed(2) + '%' : EMPTY_LABEL}</p>
                     </div>
                     <div>
                         <p class="text-xs text-gray-500">Ngày quyết định</p>
@@ -355,7 +371,7 @@ window.triggerPredictionForLoan = async function(loanId) {
     const staffId = localStorage.getItem('smartlend_user_id') || sessionStorage.getItem('smartlend_user_id');
     
     if (!staffId) {
-        showToast('Staff ID not found. Please login again.', { type: 'error' });
+        showToast('Không tìm thấy mã nhân viên. Vui lòng đăng nhập lại.', { type: 'error' });
         return;
     }
     
@@ -370,14 +386,14 @@ window.triggerPredictionForLoan = async function(loanId) {
         openPredictionModal(loanId, null);
     } catch (error) {
         console.error('Error triggering prediction:', error);
-        showToast('Error triggering prediction: ' + error.message, { type: 'error' });
+        showToast('Không thể kích hoạt dự đoán: ' + error.message, { type: 'error' });
     }
 };
 
 window.retryPredictionForLoan = async function(loanId) {
     const staffId = getUserId();
     if (!staffId) {
-        showToast('Staff ID not found. Please login again.', { type: 'error' });
+        showToast('Không tìm thấy mã nhân viên. Vui lòng đăng nhập lại.', { type: 'error' });
         return;
     }
 
@@ -397,16 +413,6 @@ window.retryPredictionForLoan = async function(loanId) {
         console.error('Error retrying prediction:', error);
         showToast('Không thể chạy lại dự đoán: ' + error.message, { type: 'error' });
     }
-};
-
-const INTENT_LABELS = {
-    PERSONAL: 'Cá nhân',
-    EDUCATION: 'Giáo dục',
-    MEDICAL: 'Y tế',
-    VENTURE: 'Kinh doanh',
-    HOMEIMPROVEMENT: 'Sửa nhà',
-    DEBTCONSOLIDATION: 'Trả nợ',
-    OTHER: 'Khác',
 };
 
 const STATUS_DOT = {
@@ -436,13 +442,14 @@ function renderLoans(loans) {
     }
 
     tbody.innerHTML = loans.map(loan => {
-        const loanId       = loan.id ? loan.id.substring(0, 8).toUpperCase() : 'N/A';
-        const customerName = loan.customerName || 'Unknown';
-        const grade        = loan.loanGrade || 'N/A';
+        const loanId       = loan.id ? loan.id.substring(0, 8).toUpperCase() : EMPTY_LABEL;
+        const customerName = loan.customerName || 'Không xác định';
+        const grade        = loan.loanGrade || EMPTY_LABEL;
         const status       = loan.status || 'PENDING';
-        const intent       = INTENT_LABELS[loan.loanIntent] || loan.loanIntent || '—';
-        const amount       = loan.requestedAmount != null ? formatCurrency(loan.requestedAmount) : 'N/A';
-        const term         = loan.requestedTermMonths != null ? `${loan.requestedTermMonths}m` : '—';
+        let intent = formatLoanIntentLabel(loan.loanIntent);
+        if (intent === EMPTY_LABEL) intent = '—';
+        const amount       = loan.requestedAmount != null ? formatCurrency(loan.requestedAmount) : EMPTY_LABEL;
+        const term         = loan.requestedTermMonths != null ? `${loan.requestedTermMonths} tháng` : '—';
         const rate         = loan.requestedInterestRate != null ? `${loan.requestedInterestRate}%` : '—';
         const createdDate  = formatDate(loan.createdAt);
 
@@ -467,19 +474,19 @@ function renderLoans(loans) {
 
         // Loan intent chip color
         const intentChip = loan.loanIntent
-            ? `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-primary/10 text-primary border border-primary/20">${intent}</span>`
+            ? `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-primary/10 text-primary border border-primary/20">${intent}</span>`
             : '';
 
         // Grade badge (circle)
-        const gradeBadge = grade !== 'N/A'
-            ? `<span class="inline-flex items-center justify-center size-8 rounded-full ${getGradeBadge(grade)} font-black text-sm">${grade}</span>`
-            : `<span class="text-sm text-gray-400">N/A</span>`;
+        const gradeBadge = grade !== EMPTY_LABEL
+            ? `<span class="inline-flex items-center justify-center size-8 rounded-full ${getGradeBadge(grade)} font-black text-sm" title="${formatLoanGradeLabel(grade)}">${grade}</span>`
+            : `<span class="text-sm text-gray-400">${EMPTY_LABEL}</span>`;
 
         // Status badge
         const statusBadge = `
             <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${getStatusBadge(status)}">
                 <span class="size-1.5 rounded-full ${dotClass} inline-block"></span>
-                ${status.replace('_', ' ')}
+                ${formatLoanStatus(status)}
             </span>`;
 
         // Action buttons
@@ -556,7 +563,7 @@ function renderLoans(loans) {
                 <td class="px-6 py-4">
                     <div>
                         <p class="font-bold text-sm text-gray-900 dark:text-white">${customerName}</p>
-                        <p class="text-xs text-gray-400 font-mono mt-0.5">${loan.customerId ? loan.customerId.substring(0, 12) + '…' : 'N/A'}</p>
+                        <p class="text-xs text-gray-400 font-mono mt-0.5">${loan.customerId ? loan.customerId.substring(0, 12) + '…' : EMPTY_LABEL}</p>
                     </div>
                 </td>
                 <td class="px-6 py-4">
@@ -730,7 +737,7 @@ async function handleLoanDecision(loanId, decision) {
     const staffId = localStorage.getItem('smartlend_user_id') || sessionStorage.getItem('smartlend_user_id');
 
     if (!staffId) {
-        showToast('Staff ID not found. Please login again.', { type: 'error' });
+        showToast('Không tìm thấy mã nhân viên. Vui lòng đăng nhập lại.', { type: 'error' });
         return;
     }
 
@@ -754,7 +761,7 @@ async function handleLoanDecision(loanId, decision) {
         await loadLoans();
     } catch (error) {
         console.error('Error updating loan decision:', error);
-        showToast('Error updating loan decision: ' + error.message, { type: 'error' });
+        showToast('Không thể cập nhật quyết định: ' + error.message, { type: 'error' });
     }
 }
 
@@ -816,7 +823,7 @@ window.openMyProfileModal = async function() {
         body.innerHTML = `
             <div class="flex flex-col items-center gap-2 py-8">
                 <span class="material-symbols-outlined text-3xl text-red-400">error</span>
-                <p class="text-sm text-red-500">${err.message || 'Failed to load profile'}</p>
+                <p class="text-sm text-red-500">${err.message || 'Không thể tải hồ sơ'}</p>
             </div>`;
     }
 };
@@ -855,6 +862,12 @@ window.switchMyProfileToViewMode = async function() {
 };
 
 window.saveMyProfile = async function() {
+    const confirmed = await showConfirm('Bạn có chắc muốn cập nhật thông tin hồ sơ?', {
+        confirmText: 'Cập nhật',
+        cancelText: 'Hủy',
+    });
+    if (!confirmed) return;
+
     const saveBtn = document.getElementById('mp-save-btn');
     if (saveBtn) {
         saveBtn.disabled = true;
@@ -869,7 +882,7 @@ window.saveMyProfile = async function() {
         if (successEl) { successEl.textContent = 'Cập nhật hồ sơ thành công!'; successEl.classList.remove('hidden'); }
         setTimeout(() => window.switchMyProfileToViewMode(), 1200);
     } catch (err) {
-        if (err.message !== 'Validation failed') showEditMyProfileError(err.message || 'Failed to save');
+        if (err.message !== 'Validation failed') showEditMyProfileError(err.message || 'Không thể lưu');
     } finally {
         if (saveBtn) {
             saveBtn.disabled = false;
@@ -990,7 +1003,7 @@ async function openPredictionModal(loanId, predictionId) {
         }
     } catch (error) {
         console.error('Error loading prediction modal:', error);
-        showToast('Error loading prediction: ' + error.message, { type: 'error' });
+        showToast('Không thể tải kết quả dự đoán: ' + error.message, { type: 'error' });
         if (els.riskCardEl) {
             els.riskCardEl.innerHTML = `
                 <div class="flex flex-col items-center justify-center py-8 gap-2">
@@ -1022,7 +1035,7 @@ window.refreshPredictionModal = function() {
                 updatePredictionModalActions(data.currentLoan, data.currentPrediction);
             })
             .catch((err) => {
-                showToast('Error refreshing: ' + err.message, { type: 'error' });
+                showToast('Không thể làm mới: ' + err.message, { type: 'error' });
             });
     }
 };
@@ -1045,20 +1058,7 @@ document.addEventListener('DOMContentLoaded', () => {
         predictionNavLink.classList.remove('hidden');
     }
 
-    // Close my profile modal when clicking outside
-    document.getElementById('my-profile-modal')?.addEventListener('click', (e) => {
-        if (e.target.id === 'my-profile-modal') window.closeMyProfileModal();
-    });
-
-    // Close loan modal when clicking outside
-    document.getElementById('loan-modal')?.addEventListener('click', (e) => {
-        if (e.target.id === 'loan-modal') closeLoanModal();
-    });
-
-    // Close prediction modal when clicking outside
-    document.getElementById('prediction-result-modal')?.addEventListener('click', (e) => {
-        if (e.target.id === 'prediction-result-modal') closePredictionModal();
-    });
+    // Modals chỉ đóng bằng nút Đóng / Hủy — không đóng khi click ra ngoài
 
     // Logout from sidebar avatar dropdown
     const logoutLink = document.getElementById('loan-logout-link');

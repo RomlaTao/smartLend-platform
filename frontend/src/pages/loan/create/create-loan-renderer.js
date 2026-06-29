@@ -4,6 +4,8 @@
 
 import { getCustomerById } from '/src/services/customer.service.js';
 import { createLoanApplication, triggerLoanPrediction } from '/src/services/loanmanagement.service.js';
+import { LOAN_INTENT_LABELS } from '/src/utils/loanIntent.js';
+import { EMPTY_LABEL, formatLoanGradeLabel, orEmpty } from '/src/utils/formatter.js';
 
 // ─── Monthly payment calculator ───────────────────────────────────────────────
 
@@ -29,6 +31,10 @@ function updateLoanSummary() {
 // ─── Form HTML ───────────────────────────────────────────────────────────────
 
 export function renderCreateLoanFormHtml() {
+    const intentOptions = Object.entries(LOAN_INTENT_LABELS)
+        .map(([value, label]) => `<option value="${value}">${label}</option>`)
+        .join('');
+
     return `
         <div id="cl-customer-banner" class="mb-5 flex items-center gap-3 p-4 bg-primary/5 border border-primary/15 rounded-xl">
             <div class="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
@@ -53,13 +59,7 @@ export function renderCreateLoanFormHtml() {
                         <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Mục đích vay <span class="text-red-500">*</span></label>
                         <select id="cl-intent" required
                             class="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
-                            <option value="PERSONAL">PERSONAL</option>
-                            <option value="EDUCATION">EDUCATION</option>
-                            <option value="MEDICAL">MEDICAL</option>
-                            <option value="VENTURE">VENTURE</option>
-                            <option value="HOMEIMPROVEMENT">HOME IMPROVEMENT</option>
-                            <option value="DEBTCONSOLIDATION">DEBT CONSOLIDATION</option>
-                            <option value="OTHER">OTHER</option>
+                            ${intentOptions}
                         </select>
                     </div>
                     <div>
@@ -143,8 +143,8 @@ export async function loadCustomerInfoForLoan(customerId) {
         const customer = await getCustomerById(customerId);
         const nameEl = document.getElementById('cl-customer-name');
         const metaEl = document.getElementById('cl-customer-meta');
-        if (nameEl) nameEl.textContent = customer.fullName || 'Unknown';
-        if (metaEl) metaEl.textContent = `${customer.email || ''} · Grade ${customer.loanGrade || 'N/A'}`;
+        if (nameEl) nameEl.textContent = orEmpty(customer.fullName, 'Không xác định');
+        if (metaEl) metaEl.textContent = `${customer.email || ''} · Hạng ${customer.loanGrade ? `${customer.loanGrade} (${formatLoanGradeLabel(customer.loanGrade)})` : EMPTY_LABEL}`;
         return customer;
     } catch {
         document.getElementById('cl-customer-name').textContent = 'Không thể tải thông tin khách hàng';
@@ -200,7 +200,7 @@ export async function submitCreateLoanForm(customerId, staffId) {
         await triggerLoanPrediction(result.id, staffId);
         predictionTriggered = true;
     } catch (predErr) {
-        predictionError = predErr.message || 'Unknown error';
+        predictionError = predErr.message || 'Lỗi không xác định';
         console.warn('[create-loan-renderer] Prediction trigger failed:', predictionError);
     }
 

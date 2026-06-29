@@ -1,24 +1,31 @@
 // prediction-result-renderer.js
 // Shared rendering utilities for Prediction Result views (modal & standalone page)
 
-import { getLoanApplicationById, getLoanApplicationsByCustomerId } from '/src/services/loanmanagement.service.js';
+import { getLoanApplicationById, getLoanApplicationsByCustomerId, getFinancialSnapshotById, getFinancialSnapshotsByCustomerId } from '/src/services/loanmanagement.service.js';
 import { getCustomerById } from '/src/services/customer.service.js';
 import { getPredictionById } from '/src/services/prediction.service.js';
+import { formatLoanIntentLabel, attachLoanIntent } from '/src/utils/loanIntent.js';
+import {
+    EMPTY_LABEL,
+    formatCurrencyVnd,
+    formatHomeOwnership,
+    formatLoanGradeLabel,
+    formatRelativeDaysVi,
+    orEmpty,
+} from '/src/utils/formatter.js';
+import { formatFeatureLabel, translateLimeRule } from '/src/utils/featureLabels.js';
+
+const loanIntentApi = { getFinancialSnapshotById, getFinancialSnapshotsByCustomerId };
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 export function formatCurrency(amount) {
-    if (amount == null) return 'N/A';
-    return new Intl.NumberFormat('vi-VN', {
-        style: 'currency',
-        currency: 'VND',
-        minimumFractionDigits: 0,
-    }).format(amount);
+    return formatCurrencyVnd(amount);
 }
 
 export function formatUsd(amount) {
-    if (amount == null) return 'N/A';
-    return new Intl.NumberFormat('en-US', {
+    if (amount == null) return EMPTY_LABEL;
+    return new Intl.NumberFormat('vi-VN', {
         style: 'currency',
         currency: 'USD',
         minimumFractionDigits: 0,
@@ -37,7 +44,7 @@ function _hasSnapshotData(loan) {
 
 export function getDaysAgo(dateString) {
     if (!dateString) return 0;
-    const diffTime = Math.abs(new Date() - new Date(dateString));
+    const diffTime = Math.abs(Date.now() - new Date(dateString).getTime());
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 }
 
@@ -58,23 +65,24 @@ export function renderCustomerProfile(containerEl, customer, loan = null) {
         : '';
 
     const age = useSnapshot && loan.snapshotPersonAge != null
-        ? loan.snapshotPersonAge
-        : (customer?.personAge ?? 'N/A');
+        ? `${loan.snapshotPersonAge} tuổi`
+        : (customer?.personAge != null ? `${customer.personAge} tuổi` : EMPTY_LABEL);
     const income = useSnapshot && loan.snapshotPersonIncome != null
         ? formatUsd(loan.snapshotPersonIncome)
-        : (customer?.personIncome ? formatCurrency(customer.personIncome) : 'N/A');
-    const homeOwnership = useSnapshot && loan.snapshotPersonHomeOwnership
+        : (customer?.personIncome != null ? formatCurrency(customer.personIncome) : EMPTY_LABEL);
+    const homeOwnershipRaw = useSnapshot && loan.snapshotPersonHomeOwnership
         ? loan.snapshotPersonHomeOwnership
-        : (customer?.personHomeOwnership || 'N/A');
+        : customer?.personHomeOwnership;
+    const homeOwnership = formatHomeOwnership(homeOwnershipRaw);
 
     containerEl.innerHTML = `
         ${note}
-        ${field('Họ và tên', customer?.fullName || 'N/A')}
-        ${field('Email', customer?.email || 'N/A')}
+        ${field('Họ và tên', orEmpty(customer?.fullName))}
+        ${field('Email', orEmpty(customer?.email))}
         ${field('Tuổi', age)}
         ${field('Thu nhập hàng năm', income)}
         ${field('Hình thức sở hữu nhà', homeOwnership)}
-        ${field('Thâm niên công việc', customer?.personEmpLength != null ? `${customer.personEmpLength} năm` : 'N/A')}
+        ${field('Thâm niên công việc', customer?.personEmpLength != null ? `${customer.personEmpLength} năm` : EMPTY_LABEL)}
     `;
 }
 
@@ -84,28 +92,31 @@ export function renderLoanDetails(containerEl, loan, customer) {
         ? '<p class="col-span-2 text-[11px] text-slate-400 italic mb-1">(tại thời điểm nộp đơn)</p>'
         : '';
 
-    const loanGrade = loan?.loanGrade || customer?.loanGrade || 'N/A';
+    const loanGrade = loan?.loanGrade || customer?.loanGrade || EMPTY_LABEL;
+    const gradeDisplay = loanGrade !== EMPTY_LABEL
+        ? `${loanGrade} — ${formatLoanGradeLabel(loanGrade)}`
+        : EMPTY_LABEL;
     const amountDisplay = useSnapshot && loan.snapshotLoanAmnt != null
         ? formatUsd(loan.snapshotLoanAmnt)
-        : (loan?.requestedAmount ? formatCurrency(loan.requestedAmount) : 'N/A');
+        : (loan?.requestedAmount != null ? formatCurrency(loan.requestedAmount) : EMPTY_LABEL);
 
-    let percentIncome = 'N/A';
+    let percentIncome = EMPTY_LABEL;
     if (useSnapshot && loan.snapshotLoanPercentIncome != null) {
         percentIncome = (loan.snapshotLoanPercentIncome * 100).toFixed(1) + '%';
     } else if (customer?.personIncome && loan?.requestedAmount) {
         percentIncome = ((loan.requestedAmount / customer.personIncome) * 100).toFixed(1) + '%';
     }
 
-    const daysAgo = getDaysAgo(loan?.createdAt);
+    const submittedLabel = formatRelativeDaysVi(loan?.createdAt);
     containerEl.innerHTML = `
         ${note}
-        ${field('Mục đích vay', `<span class="inline-block px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-slate-700 dark:text-slate-300 text-xs font-bold uppercase">${loan?.loanIntent || 'N/A'}</span>`)}
-        ${field('Hạng tín dụng', `<span class="text-primary font-black text-lg">${loanGrade}</span>`)}
+        ${field('Mục đích vay', `<span class="inline-block px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-slate-700 dark:text-slate-300 text-xs font-bold">${formatLoanIntentLabel(loan?.loanIntent)}</span>`)}
+        ${field('Hạng tín dụng', `<span class="text-primary font-black text-lg">${gradeDisplay}</span>`)}
         ${field('Số tiền vay', amountDisplay)}
-        ${field('Kỳ hạn', loan?.requestedTermMonths != null ? `${loan.requestedTermMonths} tháng` : 'N/A')}
-        ${field('Lãi suất', loan?.requestedInterestRate != null ? `${loan.requestedInterestRate}% (Cố định)` : 'N/A')}
+        ${field('Kỳ hạn', loan?.requestedTermMonths != null ? `${loan.requestedTermMonths} tháng` : EMPTY_LABEL)}
+        ${field('Lãi suất', loan?.requestedInterestRate != null ? `${loan.requestedInterestRate}% (Cố định)` : EMPTY_LABEL)}
         ${field('Vay / Thu nhập', percentIncome)}
-        ${field('Ngày nộp', daysAgo > 0 ? `${daysAgo} ngày trước` : 'Hôm nay')}
+        ${field('Ngày nộp', submittedLabel)}
     `;
 }
 
@@ -190,7 +201,7 @@ function renderPredictionResultContent(cardBody, prediction) {
         : null;
     const defaultPct = prediction.confidence != null
         ? (prediction.confidence * 100).toFixed(1)
-        : 'N/A';
+        : EMPTY_LABEL;
 
     const C = 339;
     let arcColor, verdictBg, verdictText, verdictLabel;
@@ -236,7 +247,7 @@ function renderPredictionResultContent(cardBody, prediction) {
             <p class="text-[10px] font-bold uppercase tracking-widest mb-1 ${verdictText}">Kết luận</p>
             <h3 class="text-sm font-extrabold ${verdictText}">${verdictLabel}</h3>
             <p class="text-xs ${verdictText} opacity-80 mt-1">
-                Xác suất vỡ nợ: ${defaultPct}%
+                Xác suất vỡ nợ: ${defaultPct === EMPTY_LABEL ? EMPTY_LABEL : defaultPct + '%'}
             </p>
         </div>
     `;
@@ -294,6 +305,7 @@ export function renderExplanationSection(containerEl, prediction) {
         : 1;
 
     const shapRows = shapEntries.map(([feature, value]) => {
+        const label    = formatFeatureLabel(feature);
         const pct      = maxAbs > 0 ? ((Math.abs(value) / maxAbs) * 100).toFixed(1) : 0;
         const isPos    = value >= 0;
         const barColor = isPos ? 'bg-red-400'     : 'bg-emerald-400';
@@ -301,7 +313,7 @@ export function renderExplanationSection(containerEl, prediction) {
         const sign     = isPos ? '+'              : '';
         return `
             <div class="flex items-center gap-2 py-1">
-                <span class="text-[11px] text-slate-600 w-44 truncate shrink-0 font-medium" title="${feature}">${feature}</span>
+                <span class="text-[11px] text-slate-600 w-44 truncate shrink-0 font-medium" title="${label}">${label}</span>
                 <div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
                     <div class="${barColor} h-full rounded-full transition-all" style="width:${pct}%"></div>
                 </div>
@@ -312,20 +324,21 @@ export function renderExplanationSection(containerEl, prediction) {
     // LIME: list of rules with weights
     const limeFeatures = explanation.limeFeatures || [];
     const limeRows = limeFeatures.map((f) => {
+        const ruleVi     = translateLimeRule(f.rule);
         const isPos      = f.weight >= 0;
         const ruleColor  = isPos ? 'bg-red-50 border-red-200 text-red-800'       : 'bg-emerald-50 border-emerald-200 text-emerald-800';
         const valColor   = isPos ? 'text-red-600 font-black'                     : 'text-emerald-600 font-black';
         const sign       = isPos ? '+' : '';
         return `
             <div class="flex items-start justify-between gap-3 py-2 border-b border-slate-100 last:border-0">
-                <span class="text-[11px] px-2 py-1 rounded border ${ruleColor} flex-1 leading-snug">${f.rule}</span>
+                <span class="text-[11px] px-2 py-1 rounded border ${ruleColor} flex-1 leading-snug" title="${f.rule}">${ruleVi}</span>
                 <span class="text-[11px] ${valColor} whitespace-nowrap mt-1">${sign}${f.weight.toFixed(3)}</span>
             </div>`;
     }).join('');
 
     const riskLevelBadge = _buildRiskLevelBadge(explanation.riskLevel || prediction?.riskLevel || '');
     const shapBaseNote   = explanation.shapBaseValue != null
-        ? `<span class="text-[10px] text-slate-400">Base value: <strong>${explanation.shapBaseValue.toFixed(3)}</strong></span>`
+        ? `<span class="text-[10px] text-slate-400">Giá trị cơ sở: <strong>${explanation.shapBaseValue.toFixed(3)}</strong></span>`
         : '';
 
     containerEl.innerHTML = `
@@ -335,7 +348,7 @@ export function renderExplanationSection(containerEl, prediction) {
                 <span class="material-symbols-outlined text-indigo-500 text-xl">analytics</span>
                 <h3 class="font-bold text-slate-800 dark:text-white">Giải thích AI (XAI)</h3>
                 ${riskLevelBadge}
-                <span class="ml-auto text-[10px] text-slate-400">Powered by SHAP &amp; LIME</span>
+                <span class="ml-auto text-[10px] text-slate-400">Phân tích bởi SHAP &amp; LIME</span>
             </div>
 
             <!-- SHAP + LIME side by side -->
@@ -410,6 +423,7 @@ export async function loadAndRenderPrediction(loanId, predictionId, els) {
 
     if (loanId) {
         currentLoan     = await getLoanApplicationById(loanId);
+        currentLoan     = await attachLoanIntent(currentLoan, loanIntentApi);
         currentCustomer = await getCustomerById(currentLoan.customerId);
         if (currentLoan.predictionId) {
             try {
@@ -428,6 +442,7 @@ export async function loadAndRenderPrediction(loanId, predictionId, els) {
         currentLoan = Array.isArray(loansOfCustomer)
             ? loansOfCustomer.find((l) => String(l.predictionId) === String(predictionId))
             : null;
+        if (currentLoan) currentLoan = await attachLoanIntent(currentLoan, loanIntentApi);
     }
 
     if (currentLoan?.predictionLabel != null) {
@@ -443,7 +458,7 @@ export async function loadAndRenderPrediction(loanId, predictionId, els) {
     // Title
     if (els.titleEl) {
         const loanIdShort = currentLoan?.id ? currentLoan.id.substring(0, 8).toUpperCase() : '--------';
-        els.titleEl.textContent = `${currentCustomer.fullName || 'Unknown'} — #${loanIdShort}`;
+        els.titleEl.textContent = `${orEmpty(currentCustomer?.fullName, 'Không xác định')} — #${loanIdShort}`;
     }
 
     // Status badge

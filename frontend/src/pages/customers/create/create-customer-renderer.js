@@ -54,11 +54,11 @@ export function renderCreateCustomerFormHtml() {
                         <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Hình thức sở hữu nhà <span class="text-red-500">*</span></label>
                         <select id="cc-personHomeOwnership" name="personHomeOwnership" required
                             class="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
-                            <option value="">Select...</option>
-                            <option value="RENT">RENT</option>
-                            <option value="OWN">OWN</option>
-                            <option value="MORTGAGE">MORTGAGE</option>
-                            <option value="OTHER">OTHER</option>
+                            <option value="">-- Chọn --</option>
+                            <option value="RENT">Thuê nhà</option>
+                            <option value="OWN">Sở hữu</option>
+                            <option value="MORTGAGE">Đang thế chấp</option>
+                            <option value="OTHER">Khác</option>
                         </select>
                     </div>
                     <div>
@@ -70,7 +70,7 @@ export function renderCreateCustomerFormHtml() {
                         <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Hạng tín dụng <span class="text-red-500">*</span></label>
                         <select id="cc-loanGrade" name="loanGrade" required
                             class="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
-                            <option value="">Select...</option>
+                            <option value="">-- Chọn --</option>
                             <option value="A">A – Xuất sắc</option>
                             <option value="B">B – Rất tốt</option>
                             <option value="C">C – Tốt</option>

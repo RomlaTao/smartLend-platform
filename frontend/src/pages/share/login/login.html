@@ -113,10 +113,10 @@
 <a class="text-primary text-sm font-bold hover:underline" href="#">Quên mật khẩu?</a>
 </div>
 <div class="flex w-full items-stretch relative">
-<input class="form-input flex w-full rounded-lg text-[#0d121b] dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/20 border border-[#cfd7e7] dark:border-slate-700 bg-white dark:bg-slate-800 focus:border-primary h-14 placeholder:text-[#4c669a] dark:placeholder:text-slate-500 p-[15px] text-base font-normal pr-12 transition-colors" placeholder="••••••••" type="password"/>
-<div class="absolute right-4 top-1/2 -translate-y-1/2 text-[#4c669a] cursor-pointer hover:text-primary transition-colors">
-<span class="material-symbols-outlined">visibility</span>
-</div>
+<input id="login-password" class="form-input flex w-full rounded-lg text-[#0d121b] dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/20 border border-[#cfd7e7] dark:border-slate-700 bg-white dark:bg-slate-800 focus:border-primary h-14 placeholder:text-[#4c669a] dark:placeholder:text-slate-500 p-[15px] text-base font-normal pr-12 transition-colors" placeholder="••••••••" type="password" autocomplete="current-password"/>
+<button type="button" id="password-toggle" class="absolute right-4 top-1/2 -translate-y-1/2 text-[#4c669a] hover:text-primary transition-colors" aria-label="Hiện mật khẩu">
+<span id="password-toggle-icon" class="material-symbols-outlined">visibility_off</span>
+</button>
 </div>
 </label>
 </div>

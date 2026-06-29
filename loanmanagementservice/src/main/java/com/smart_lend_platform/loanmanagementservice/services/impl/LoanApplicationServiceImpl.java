@@ -277,6 +277,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     private LoanApplicationResponseDto mapToResponse(LoanApplication loanApplication) {
         String customerName = null;
         String loanGrade = null;
+        String loanIntent = null;
         Double snapshotPersonIncome = null;
         Double snapshotLoanAmnt = null;
         Double snapshotLoanPercentIncome = null;
@@ -290,6 +291,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
             if (snapshot != null) {
                 customerName = snapshot.getCustomerName();
                 loanGrade = snapshot.getLoanGrade() != null ? snapshot.getLoanGrade().name() : null;
+                loanIntent = snapshot.getLoanIntent() != null ? snapshot.getLoanIntent().name() : null;
                 snapshotPersonIncome = snapshot.getPersonIncome();
                 snapshotLoanAmnt = snapshot.getLoanAmnt();
                 snapshotLoanPercentIncome = snapshot.getLoanPercentIncome();
@@ -305,6 +307,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                 .customerId(loanApplication.getCustomerId())
                 .customerName(customerName)
                 .loanGrade(loanGrade)
+                .loanIntent(loanIntent)
                 .financialSnapshotId(loanApplication.getFinancialSnapshotId())
                 .predictionId(loanApplication.getPredictionId())
                 .requestedAmount(loanApplication.getRequestedAmount())
