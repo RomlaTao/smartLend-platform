@@ -123,7 +123,7 @@ flowchart TB
 | Messaging | Pika (RabbitMQ consumer/publisher) |
 | Container | Docker (python:3.11-slim) |
 
-### 3.3 Frontend (`smartLend-fe/frontend`)
+### 3.3 Frontend (`frontend/`)
 
 | Thành phần | Công nghệ |
 |---|---|
@@ -443,7 +443,7 @@ docker compose up --build
 **Khởi chạy frontend (development):**
 
 ```bash
-cd smartLend-fe/frontend
+cd frontend
 npm install
 npm run dev    # http://localhost:5173
 ```
@@ -538,17 +538,14 @@ smartLend-platform/                 # Backend monorepo (Maven parent)
 ├── loanmanagementservice/
 ├── currencyservice/
 ├── ml-model/                       # Python ML service
+├── frontend/                       # Vite multi-page UI (nginx in Docker/k8s)
+├── k8s/                            # Kubernetes manifests (k3s)
+├── scripts/                        # deploy, build, smoke tests
 ├── docker-compose.yml
 ├── pom.xml
 ├── .env
 └── docs/
     └── ARCHITECTURE.md             # ← Tài liệu này
-
-smartLend-fe/smartLend-fe/
-└── frontend/                       # Vite SPA (multi-page)
-    ├── src/
-    ├── package.json
-    └── vite.config.js
 ```
 
 ---
@@ -559,9 +556,9 @@ smartLend-fe/smartLend-fe/
 2. **ML inference async** — Java services không block chờ model; dùng RabbitMQ request/reply pattern.
 3. **Dual publish từ ML** — luồng loan gửi kèm `loanApplicationId`, ML publish cả `model.predict.completed` và `loan.prediction.completed`.
 4. **Currency conversion** — dữ liệu VND từ UI/DB được convert sang USD trước khi đưa vào model (khớp training dataset).
-5. **Frontend tách repo** — deploy độc lập, gọi backend qua Gateway (CORS configured).
-6. **Chưa có CI/CD / Kubernetes** trong repo — hiện triển khai local/staging qua Docker Compose.
+5. **Frontend trong monorepo** — `frontend/` cùng repo platform; gọi backend qua Gateway (CORS configured).
+6. **k3s dev** — xem `k8s/README.md` và `docs/K3S_DEPLOYMENT_PLAN.md`; Compose vẫn dùng cho local dev.
 
 ---
 
-*Tài liệu được sinh từ phân tích codebase `smartLend-platform` và `smartLend-fe/frontend`.*
+*Tài liệu được sinh từ phân tích codebase `smartLend-platform` (bao gồm `frontend/`).*

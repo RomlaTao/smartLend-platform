@@ -58,10 +58,9 @@ kubectl apply -k k8s/overlays/dev-host/  # apps + ingress
 bash scripts/deploy-dev.sh dev --apps-only
 bash scripts/deploy-dev.sh dev --skip-build   # tái deploy không build lại
 
-# Chỉ rebuild frontend (sau sửa vite.config.js):
-FE_DIR=/mnt/c/Projects/smartlend/smartLend-fe/smartLend-fe/frontend
-docker build -f "${FE_DIR}/Dockerfile" --build-arg VITE_API_GATEWAY_URL=http://api.smartlend.local \
-  -t smartlend/frontend:dev "${FE_DIR}"
+# Chỉ rebuild frontend:
+docker build -f frontend/Dockerfile --build-arg VITE_API_GATEWAY_URL=http://api.smartlend.local \
+  -t smartlend/frontend:dev frontend/
 docker save smartlend/frontend:dev | sudo k3s ctr images import -
 kubectl -n smartlend rollout restart deployment/frontend
 ```
@@ -101,6 +100,8 @@ k8s/
 │   └── ingress.yaml              # Traefik: smartlend.local / api.smartlend.local
 └── helm/values/                  # mysql-*.yaml (bitnamilegacy/mysql)
 
+frontend/                         # Vite UI (monorepo — build via scripts/build-all-images.sh)
+
 scripts/
 ├── k3s-preflight.sh              # helpers: k3s_setup_kubectl, k3s_preflight, helm_setup
 ├── k3s-install-wsl.sh            # cài k3s trên WSL2 (cgroup fix)
@@ -108,7 +109,7 @@ scripts/
 ├── phase0-bootstrap.sh           # namespace + configmap + secrets + auto mysql-secrets
 ├── phase1-infra.sh               # MySQL (pre-pull bitnamilegacy → Helm) + Redis + RabbitMQ
 ├── phase1-verify.sh              # DNS test + pod status
-├── build-all-images.sh           # docker build + k3s ctr import (không push registry)
+├── build-all-images.sh           # docker build + k3s ctr import (frontend/ in monorepo)
 ├── deploy-dev.sh                 # orchestrator: phase0 → phase1 → build → kubectl apply -k
 ├── phase3-smoke.sh               # health check + OOM scan
 ├── teardown-smartlend.sh         # xóa namespace + Helm + PVC

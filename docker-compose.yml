@@ -150,7 +150,7 @@ services:
     networks:
       - smart-lend-platform-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "${EUREKA_SERVER_URL}/actuator/health"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8761/actuator/health || exit 1"]
       timeout: 10s
       retries: 5
       interval: 10s
@@ -170,6 +170,7 @@ services:
       SPRING_DATA_REDIS_HOST: smart-lend-redis
       SPRING_DATA_REDIS_PORT: 6379
       EUREKA_SERVER_URL: ${EUREKA_SERVER_URL}
+      CORS_ALLOWED_ORIGINS: http://localhost:8081
     networks:
       - smart-lend-platform-network
     restart: unless-stopped
@@ -177,13 +178,13 @@ services:
       smart-lend-redis:
         condition: service_healthy
       eureka-server:
-        condition: service_started
+        condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f ${EUREKA_SERVER_URL}/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s
+      start_period: 90s
 
   # IdentityService (Authentication & Authorization & User Profile Management)
   identityservice:
@@ -221,11 +222,11 @@ services:
       eureka-server:
         condition: service_started
     healthcheck:
-      test: ["CMD-SHELL", "curl -f ${EUREKA_SERVER_URL}/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8005/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s
+      start_period: 90s
 
   # CustomerService (Customer Profile Management)
   customerservice:
@@ -258,11 +259,11 @@ services:
       eureka-server:
         condition: service_started
     healthcheck:
-      test: ["CMD-SHELL", "curl -f ${EUREKA_SERVER_URL}/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8006/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s
+      start_period: 90s
 
   # PredictionService (ML Prediction Management)
   predictionservice:
@@ -306,11 +307,11 @@ services:
       eureka-server:
         condition: service_started
     healthcheck:
-      test: ["CMD-SHELL", "curl -f ${EUREKA_SERVER_URL}/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8007/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s
+      start_period: 90s
 
   # ML Model Service (Python Flask Service)
   ml-model-service:
@@ -388,7 +389,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s
+      start_period: 90s
 
   # LoanManagementService (Loan Management)
   loanmanagementservice:
@@ -434,11 +435,34 @@ services:
       eureka-server:
         condition: service_started
     healthcheck:
-      test: ["CMD-SHELL", "curl -f ${EUREKA_SERVER_URL}/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8008/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s
+      start_period: 90s
+
+  # Frontend (Vite static + nginx)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_GATEWAY_URL: http://localhost:8080
+    container_name: frontend
+    ports:
+      - "8081:80"
+    networks:
+      - smart-lend-platform-network
+    restart: unless-stopped
+    depends_on:
+      apigateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
 volumes:
   # Database volumes

@@ -38,6 +38,12 @@ build/
 k8s/base/secrets.yaml
 k8s/base/mysql-secrets.yaml
 
+# Frontend (Vite)
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+
 # Maven
 .mvn/
 .mvnw/

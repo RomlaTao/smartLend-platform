@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Danh sách khách hàng</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#135bec",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#101622",
+                    },
+                    fontFamily: {
+                        "display": ["Inter"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .dropdown-menu {
+            display: none;
+        }
+        .dropdown-menu.show {
+            display: block;
+        }
+        .zebra-table tr:nth-child(even) {
+            background-color: #fafbfc;
+        }
+        .filter-sidebar {
+            transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+        }
+        .filter-sidebar.hidden {
+            transform: translateX(-100%);
+            opacity: 0;
+            position: absolute;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-[#0d121b] dark:text-gray-100 font-display transition-colors duration-200">
+<div class="flex h-screen overflow-hidden">
+<!-- Staff Navigation Sidebar -->
+<aside class="w-64 flex-shrink-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col">
+<div class="p-6 border-b border-gray-200 dark:border-gray-800">
+<a href="/index.html" class="flex items-center text-primary" aria-label="SmartLend">
+<span class="flex items-center justify-center w-9 h-9 rounded-lg bg-primary text-white">
+<span class="material-symbols-outlined text-xl">account_balance</span>
+</span>
+<span class="ml-3 text-lg font-bold text-gray-900 dark:text-white">SmartLend</span>
+</a>
+</div>
+<nav class="flex-1 px-4 space-y-1 mt-6">
+<a id="nav-prediction-link" href="/src/pages/analytics/predictions/list/ListPrediction.html" class="hidden flex items-center gap-3 px-4 py-3 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors">
+<span class="material-symbols-outlined text-[20px]">manage_search</span>
+<span class="font-semibold">Lịch sử dự đoán</span>
+</a>
+<a href="/src/pages/customers/list/ListCustomer.html" class="flex items-center gap-3 px-4 py-3 bg-primary text-white rounded-lg shadow-md shadow-primary/20 transition-colors">
+<span class="material-symbols-outlined text-[20px]">group</span>
+<span class="font-semibold">Quản lý khách hàng</span>
+</a>
+<a href="/src/pages/loan/list/ListLoan.html" class="flex items-center gap-3 px-4 py-3 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors">
+<span class="material-symbols-outlined text-[20px]">payments</span>
+<span class="font-semibold">Quản lý khoản vay</span>
+</a>
+</nav>
+<div class="p-4 border-t border-gray-200 dark:border-gray-800">
+    <div class="flex items-center gap-3 px-2">
+        <div
+                class="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center cursor-pointer"
+                onclick="openMyProfileModal()"
+                title="Xem hồ sơ"
+        >
+            <span class="material-symbols-outlined text-xl">person</span>
+        </div>
+        <div class="overflow-hidden flex-1">
+            <p id="customer-sidebar-fullname" class="text-sm font-semibold text-gray-900 dark:text-white truncate"></p>
+            <p id="customer-sidebar-role" class="text-xs text-primary uppercase font-bold tracking-wide">Nhân viên</p>
+        </div>
+    </div>
+    <button
+            id="customer-logout-link"
+            class="mt-3 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-red-600 border border-red-100 dark:border-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+    >
+        <span class="material-symbols-outlined text-[20px]">logout</span>
+        <span>Đăng xuất</span>
+    </button>
+</div>
+</aside>
+<!-- Main Layout Container -->
+<div class="flex-1 flex flex-col overflow-hidden">
+<!-- Header -->
+    <header class="h-16 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center px-8 shrink-0">
+<h1 class="text-2xl font-bold text-gray-900 dark:text-white">Danh sách khách hàng</h1>
+</header>
+    <main class="flex flex-1 overflow-hidden h-[calc(100vh-64px)]">
+<!-- Sidebar: Advanced Filters -->
+<aside id="filter-sidebar" class="filter-sidebar hidden w-80 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 flex flex-col overflow-y-auto z-20">
+<div class="p-6 border-b border-gray-200 dark:border-gray-800">
+<h3 class="text-lg font-bold text-gray-900 dark:text-white mb-1">Bộ lọc nâng cao</h3>
+<p class="text-xs text-gray-500">Lọc kết quả tìm kiếm</p>
+</div>
+<div class="p-6 space-y-8">
+<!-- Filter Section: Income Range -->
+<div class="space-y-4">
+<div class="flex items-center gap-2 text-primary">
+<span class="material-symbols-outlined">payments</span>
+<span class="text-sm font-semibold uppercase tracking-wider">Khoảng thu nhập</span>
+</div>
+<div class="px-2">
+<div class="relative h-2 w-full bg-gray-200 dark:bg-gray-700 rounded-full mb-6">
+<div class="absolute h-full left-[20%] right-[30%] bg-primary rounded-full"></div>
+<div class="absolute top-1/2 left-[20%] -translate-y-1/2 -translate-x-1/2 size-4 bg-white border-2 border-primary rounded-full shadow-sm cursor-pointer"></div>
+<div class="absolute top-1/2 right-[30%] -translate-y-1/2 translate-x-1/2 size-4 bg-white border-2 border-primary rounded-full shadow-sm cursor-pointer"></div>
+</div>
+<div class="flex justify-between text-xs font-medium text-gray-500">
+<span>20.000.000 VND</span>
+<span>150.000.000+ VND</span>
+</div>
+</div>
+</div>
+<!-- Filter Section: Home Ownership -->
+<div class="space-y-4">
+<div class="flex items-center gap-2 text-primary">
+<span class="material-symbols-outlined">home</span>
+<span class="text-sm font-semibold uppercase tracking-wider">Hình thức sở hữu nhà</span>
+</div>
+<div class="space-y-2">
+<label class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors">
+<input checked="" class="text-primary focus:ring-primary h-4 w-4 border-gray-300" name="ownership" type="radio" value="rent"/>
+<span class="text-sm font-medium">RENT</span>
+</label>
+<label class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors">
+<input class="text-primary focus:ring-primary h-4 w-4 border-gray-300" name="ownership" type="radio" value="mortgage"/>
+<span class="text-sm font-medium">MORTGAGE</span>
+</label>
+<label class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors">
+<input class="text-primary focus:ring-primary h-4 w-4 border-gray-300" name="ownership" type="radio" value="own"/>
+<span class="text-sm font-medium">OWN</span>
+</label>
+</div>
+</div>
+<!-- Filter Section: Credit History -->
+<div class="space-y-4">
+<div class="flex items-center gap-2 text-primary">
+<span class="material-symbols-outlined">history</span>
+<span class="text-sm font-semibold uppercase tracking-wider">Lịch sử tín dụng</span>
+</div>
+<div class="space-y-3">
+<label class="flex items-center gap-3 cursor-pointer group">
+<input checked="" class="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary" type="checkbox"/>
+<span class="text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white">Không có lịch sử vỡ nợ</span>
+</label>
+<label class="flex items-center gap-3 cursor-pointer group">
+<input class="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary" type="checkbox"/>
+<span class="text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white">Đã từng vỡ nợ</span>
+</label>
+<label class="flex items-center gap-3 cursor-pointer group">
+<input class="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary" type="checkbox"/>
+<span class="text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white">Hồ sơ phá sản</span>
+</label>
+</div>
+</div>
+</div>
+<div class="mt-auto p-6 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-800">
+<button class="w-full bg-primary text-white py-2.5 rounded-lg font-bold text-sm shadow-sm hover:bg-primary/90 transition-all flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-lg">filter_alt</span>
+                        Áp dụng bộ lọc
+                    </button>
+<button class="w-full mt-2 text-gray-500 dark:text-gray-400 py-2 text-xs font-semibold hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
+                        Xóa tất cả
+                    </button>
+</div>
+</aside>
+<!-- Main Content: Customer Table -->
+<div class="flex-1 flex flex-col bg-background-light dark:bg-background-dark p-6 overflow-hidden">
+        <div class="mb-6 space-y-3">
+<div class="flex flex-col md:flex-row gap-4 items-center justify-between">
+<div class="relative w-full md:w-96">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xl">search</span>
+<input id="search-input" class="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none text-sm transition-all" placeholder="Tìm kiếm khách hàng..." type="text"/>
+</div>
+<div class="flex items-center gap-3 w-full md:w-auto justify-end">
+<button id="toggle-filter-btn" class="flex items-center gap-2 px-4 py-2.5 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors" title="Toggle Filters">
+<span class="material-symbols-outlined text-[18px]">filter_list</span>
+<span>Bộ lọc</span>
+</button>
+<button type="button" class="flex items-center justify-center rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors">
+<span class="material-symbols-outlined mr-2 text-lg">person_add</span><span class="truncate">Thêm khách hàng</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Compact Table -->
+<div class="flex-1 overflow-auto bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
+<table class="w-full text-left border-collapse min-w-[900px] zebra-table">
+<thead class="bg-gray-50 dark:bg-gray-800/50 sticky top-0 z-10 border-b border-gray-200 dark:border-gray-700">
+<tr>
+<th class="px-6 py-4 text-xs font-bold uppercase tracking-wider text-gray-500">Thông tin khách hàng</th>
+<th class="px-6 py-4 text-xs font-bold uppercase tracking-wider text-gray-500">Tuổi / Số năm kinh nghiệm</th>
+<th class="px-6 py-4 text-xs font-bold uppercase tracking-wider text-gray-500">Thu nhập / Nhà ở</th>
+<th class="px-6 py-4 text-xs font-bold uppercase tracking-wider text-gray-500">Hạng tín dụng</th>
+<th class="px-6 py-4 text-xs font-bold uppercase tracking-wider text-gray-500">Lịch sử tín dụng</th>
+<th class="px-6 py-4 text-xs font-bold uppercase tracking-wider text-gray-500 text-center">Thao tác</th>
+</tr>
+</thead>
+<tbody id="customer-table-body" class="divide-y divide-gray-100 dark:divide-gray-800">
+    <!-- Customer rows will be dynamically inserted here by JavaScript -->
+    <tr>
+        <td colspan="6" class="px-6 py-12 text-center">
+            <div class="flex flex-col items-center gap-3">
+                <span class="material-symbols-outlined text-slate-300 text-5xl">hourglass_empty</span>
+                <p class="text-slate-500">Đang tải danh sách...</p>
+            </div>
+        </td>
+    </tr>
+    </tbody>
+    
+
+</table>
+</div>
+<!-- Pagination -->
+<div class="mt-6 flex items-center justify-between">
+<p id="pagination-results-text" class="text-sm text-gray-500">Hiển thị <span class="font-bold text-gray-900 dark:text-white">1</span> - <span class="font-bold text-gray-900 dark:text-white">10</span> trong <span class="font-bold text-gray-900 dark:text-white">124</span> bản ghi</p>
+<div id="pagination-container" class="flex gap-1">
+<button class="size-9 flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-white transition-colors text-gray-500">
+<span class="material-symbols-outlined">chevron_left</span>
+</button>
+<button class="size-9 flex items-center justify-center rounded-lg bg-primary text-white font-bold text-sm">1</button>
+<button class="size-9 flex items-center justify-center rounded-lg hover:bg-white dark:hover:bg-gray-800 transition-colors text-sm font-medium">2</button>
+<button class="size-9 flex items-center justify-center rounded-lg hover:bg-white dark:hover:bg-gray-800 transition-colors text-sm font-medium">3</button>
+<button class="size-9 flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-white transition-colors text-gray-500">
+<span class="material-symbols-outlined">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+</div>
+</div>
+<script type="module" src="/src/pages/customers/list/ListCustomer.js"></script>
+<script>
+    // Avatar dropdown controls
+    const avatarBtn = document.getElementById('avatar-dropdown-btn');
+    const avatarDropdown = document.getElementById('avatar-dropdown');
+    const searchInput = document.getElementById('search-input');
+    
+    // Filter sidebar toggle
+    const toggleFilterBtn = document.getElementById('toggle-filter-btn');
+    const filterSidebar = document.getElementById('filter-sidebar');
+    
+    if (toggleFilterBtn && filterSidebar) {
+        toggleFilterBtn.addEventListener('click', () => {
+            filterSidebar.classList.toggle('hidden');
+            // Add visual feedback to button
+            if (filterSidebar.classList.contains('hidden')) {
+                toggleFilterBtn.style.backgroundColor = '';
+            } else {
+                toggleFilterBtn.style.backgroundColor = 'rgba(19, 91, 236, 0.1)';
+            }
+        });
+    }
+
+    // Toggle dropdown
+    if (avatarBtn) {
+        avatarBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            avatarDropdown.classList.toggle('show');
+        });
+    }
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+        if (avatarBtn && avatarDropdown && !avatarBtn.contains(e.target) && !avatarDropdown.contains(e.target)) {
+            avatarDropdown.classList.remove('show');
+        }
+    });
+
+    // Prevent dropdown from closing when clicking inside
+    if (avatarDropdown) {
+        avatarDropdown.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+    }
+
+    // Search input handler
+    if (searchInput) {
+        let searchTimer;
+        searchInput.addEventListener('input', () => {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => {
+                const query = searchInput.value.trim();
+                const ev = new CustomEvent('header-search', { detail: { query } });
+                document.dispatchEvent(ev);
+            }, 300);
+        });
+
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const query = searchInput.value.trim();
+                const ev = new CustomEvent('header-search', { detail: { query } });
+                document.dispatchEvent(ev);
+            }
+        });
+    }
+</script>
+
+<!-- My Profile Modal -->
+<div id="my-profile-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden">
+
+        <!-- Header -->
+        <div class="flex-shrink-0 border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+                    <span class="material-symbols-outlined text-xl">person</span>
+                </div>
+                <div>
+                    <h2 id="mp-modal-title" class="text-lg font-bold text-gray-900">Hồ sơ của tôi</h2>
+                    <p id="mp-modal-subtitle" class="text-xs text-gray-500">Thông tin cá nhân của bạn</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button id="mp-edit-btn" onclick="switchMyProfileToEditMode()"
+                    class="px-3 py-1.5 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-base">edit</span>
+                    Chỉnh sửa hồ sơ
+                </button>
+                <button onclick="closeMyProfileModal()" class="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                    <span class="material-symbols-outlined text-gray-500">close</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- View body -->
+        <div id="my-profile-modal-body" class="flex-1 overflow-y-auto p-6">
+            <div class="flex flex-col items-center justify-center py-12 gap-3">
+                <span class="material-symbols-outlined text-4xl text-gray-300 animate-pulse">person</span>
+                <p class="text-sm text-gray-400">Đang tải hồ sơ...</p>
+            </div>
+        </div>
+
+        <!-- Edit body (hidden by default) -->
+        <div id="my-profile-edit-body" class="hidden flex-1 overflow-y-auto p-6"></div>
+
+        <!-- Edit footer (hidden by default) -->
+        <div id="mp-edit-footer" class="hidden flex-shrink-0 border-t border-gray-200 px-6 py-4 flex items-center justify-end gap-3 bg-gray-50">
+            <button onclick="switchMyProfileToViewMode()" type="button"
+                class="px-5 py-2 border border-gray-200 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-100 transition-colors">
+                Hủy
+            </button>
+            <button id="mp-save-btn" onclick="saveMyProfile()" type="button"
+                class="px-5 py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors flex items-center gap-2">
+                <span class="material-symbols-outlined text-base">save</span>
+                Lưu thay đổi
+            </button>
+        </div>
+
+    </div>
+</div>
+
+
+<!-- Create Customer Modal -->
+<div id="create-customer-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-gray-900 rounded-xl shadow-2xl w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden">
+
+        <!-- Header -->
+        <div class="flex-shrink-0 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+                    <span class="material-symbols-outlined text-xl">person_add</span>
+                </div>
+                <div>
+                    <h2 class="text-lg font-bold text-gray-900 dark:text-white">Tạo khách hàng mới</h2>
+                    <p class="text-xs text-gray-500">Thêm khách hàng vào hệ thống</p>
+                </div>
+            </div>
+            <button onclick="closeCreateCustomerModal()" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
+                <span class="material-symbols-outlined text-gray-500">close</span>
+            </button>
+        </div>
+
+        <!-- Body -->
+        <div id="ccm-body" class="flex-1 overflow-y-auto p-6"></div>
+
+        <!-- Footer -->
+        <div class="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-end gap-3 bg-gray-50 dark:bg-gray-800">
+            <button onclick="closeCreateCustomerModal()" type="button"
+                class="px-5 py-2 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-semibold hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                Hủy
+            </button>
+            <button id="ccm-submit-btn" onclick="submitCreateCustomerModal()" type="button"
+                class="px-5 py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors flex items-center gap-2">
+                <span class="material-symbols-outlined text-base">person_add</span>
+                Tạo khách hàng
+            </button>
+        </div>
+
+    </div>
+</div>
+
+<!-- Create Loan Modal -->
+<div id="create-loan-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-gray-900 rounded-xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden">
+
+        <!-- Header -->
+        <div class="flex-shrink-0 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+                    <span class="material-symbols-outlined text-xl">request_quote</span>
+                </div>
+                <div>
+                    <h2 class="text-lg font-bold text-gray-900 dark:text-white">Tạo đơn vay</h2>
+                    <p class="text-xs text-gray-500">Khởi tạo khoản vay mới</p>
+                </div>
+            </div>
+            <button onclick="closeCreateLoanModal()" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
+                <span class="material-symbols-outlined text-gray-500">close</span>
+            </button>
+        </div>
+
+        <!-- Body -->
+        <div id="clm-body" class="flex-1 overflow-y-auto p-6"></div>
+
+        <!-- Footer -->
+        <div class="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-end gap-3 bg-gray-50 dark:bg-gray-800">
+            <button onclick="closeCreateLoanModal()" type="button"
+                class="px-5 py-2 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-semibold hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                Hủy
+            </button>
+            <button id="clm-submit-btn" onclick="submitCreateLoanModal()" type="button"
+                class="px-5 py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors flex items-center gap-2">
+                <span class="material-symbols-outlined text-base">send</span>
+                Tạo khoản vay
+            </button>
+        </div>
+
+    </div>
+</div>
+
+<!-- Customer Detail Modal (View + Edit) -->
+<div id="customer-detail-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-gray-900 rounded-xl shadow-2xl w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden">
+
+        <!-- Header -->
+        <div class="flex-shrink-0 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+                    <span class="material-symbols-outlined text-xl">person_pin</span>
+                </div>
+                <div>
+                    <h2 id="cdm-title" class="text-lg font-bold text-gray-900 dark:text-white">Chi tiết khách hàng</h2>
+                    <p id="cdm-subtitle" class="text-xs text-gray-500">Xem thông tin khách hàng</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button id="cdm-edit-btn"
+                    onclick="switchCustomerToEditMode()"
+                    class="hidden px-3 py-1.5 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-base">edit</span>
+                    Chỉnh sửa
+                </button>
+                <button onclick="closeCustomerModal()" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
+                    <span class="material-symbols-outlined text-gray-500">close</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- View body -->
+        <div id="cdm-view-body" class="flex-1 overflow-y-auto p-6">
+            <div class="flex flex-col items-center justify-center py-12 gap-3">
+                <span class="material-symbols-outlined text-4xl text-gray-300 animate-pulse">person_pin</span>
+                <p class="text-sm text-gray-400">Đang tải thông tin...</p>
+            </div>
+        </div>
+
+        <!-- Edit body (hidden by default) -->
+        <div id="cdm-edit-body" class="hidden flex-1 overflow-y-auto p-6"></div>
+
+        <!-- Edit footer (hidden by default) -->
+        <div id="cdm-edit-footer" class="hidden flex-shrink-0 border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-end gap-3 bg-gray-50 dark:bg-gray-800">
+            <button onclick="switchCustomerToViewMode()" type="button"
+                class="px-5 py-2 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-semibold hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                Hủy
+            </button>
+            <button id="cdm-save-btn" onclick="saveCustomer()" type="button"
+                class="px-5 py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors flex items-center gap-2">
+                <span class="material-symbols-outlined text-base">save</span>
+                Lưu thay đổi
+            </button>
+        </div>
+
+    </div>
+</div>
+
+</body></html>

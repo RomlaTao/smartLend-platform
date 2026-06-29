@@ -8,17 +8,6 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 IMPORT="${IMPORT_TO_K3S:-true}"
 VITE_API_URL="${VITE_API_GATEWAY_URL:-http://api.smartlend.local}"
 
-# Auto-detect frontend repo path
-FE_DIR="${FE_DIR:-}"
-if [[ -z "${FE_DIR}" ]]; then
-  for candidate in \
-    "${ROOT_DIR}/../smartLend-fe/smartLend-fe/frontend" \
-    "${ROOT_DIR}/../smartLend-fe/frontend" \
-    "/mnt/c/Projects/smartlend/smartLend-fe/smartLend-fe/frontend"; do
-    [[ -f "${candidate}/Dockerfile" ]] && FE_DIR="${candidate}" && break
-  done
-fi
-
 build_image() {
   local name=$1 dockerfile=$2 context=$3
   shift 3
@@ -44,15 +33,8 @@ build_image predictionservice     predictionservice/Dockerfile        .
 build_image loanmanagementservice loanmanagementservice/Dockerfile    .
 build_image currencyservice       currencyservice/Dockerfile          .
 build_image ml-model-service      ml-model/Dockerfile                 ml-model/
-
-if [[ -n "${FE_DIR}" && -f "${FE_DIR}/Dockerfile" ]]; then
-  echo "==> Frontend: ${FE_DIR}"
-  build_image frontend "${FE_DIR}/Dockerfile" "${FE_DIR}" \
-    --build-arg "VITE_API_GATEWAY_URL=${VITE_API_URL}"
-else
-  echo "WARN: Frontend Dockerfile not found (FE_DIR=${FE_DIR}) — skipped"
-  echo "      Set FE_DIR or VITE_API_GATEWAY_URL env vars if needed"
-fi
+build_image frontend              frontend/Dockerfile                 frontend/ \
+  --build-arg "VITE_API_GATEWAY_URL=${VITE_API_URL}"
 
 echo ""
 echo "==> Done. Images tagged :${TAG}"

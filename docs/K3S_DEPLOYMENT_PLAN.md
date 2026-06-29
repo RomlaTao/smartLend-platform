@@ -453,9 +453,10 @@ build_and_import identityservice identityservice/Dockerfile .
 # ML model
 build_and_import ml-model-service ml-model/Dockerfile ml-model/
 
-# Frontend (repo smartLend-fe)
-# docker build -t smartlend/frontend:dev -f frontend/Dockerfile ../smartLend-fe/frontend/
-# docker save smartlend/frontend:dev | sudo k3s ctr images import -
+# Frontend (monorepo frontend/)
+docker build -f frontend/Dockerfile --build-arg VITE_API_GATEWAY_URL=http://api.smartlend.local \
+  -t smartlend/frontend:dev frontend/
+docker save smartlend/frontend:dev | sudo k3s ctr images import -
 ```
 
 **Không có** lệnh `docker push`.
