@@ -3,13 +3,19 @@ import {
     getAllLoanApplications,
     getLoanApplicationById,
     triggerLoanPrediction,
+    resetLoanPrediction,
     updateLoanApplicationDecision,
 } from '/src/services/loanmanagement.service.js';
 import { getCustomerById } from '/src/services/customer.service.js';
 import { getPredictionById } from '/src/services/prediction.service.js';
 import { getCurrentProfile } from '/src/services/identity.service.js';
 import { showToast, showConfirm } from '/src/utils/notify.js';
-import { loadAndRenderPrediction, renderLoadingSkeleton } from '/src/pages/loan/predict/prediction-result-renderer.js';
+import {
+    loadAndRenderPrediction,
+    renderLoadingSkeleton,
+    startPredictionPolling,
+    stopPredictionPolling,
+} from '/src/pages/loan/predict/prediction-result-renderer.js';
 import { loadAndRenderMyProfile } from '/src/pages/share/my-profile/my-profile-renderer.js';
 import { loadAndRenderEditMyProfileForm, submitEditMyProfileForm, showEditMyProfileError } from '/src/pages/share/edit-my-profile/edit-my-profile-renderer.js';
 
@@ -179,22 +185,23 @@ function renderLoanModal(loan, customer, prediction) {
     const loanId = loan.id ? loan.id.substring(0, 8) : 'N/A';
 
     const hasPredictionResult =
-        prediction &&
-        prediction.predictionResult !== null &&
-        prediction.predictionResult !== undefined;
+        (prediction && prediction.predictionResult !== null && prediction.predictionResult !== undefined)
+        || loan.predictionLabel != null;
+    const effectiveResult = prediction?.predictionResult ?? loan.predictionLabel;
+    const effectiveConfidence = prediction?.confidence ?? loan.predictionConfidence;
     const predictionVerdictText = hasPredictionResult
-        ? prediction.predictionResult
-            ? 'APPROVE'
-            : 'REJECT'
+        ? effectiveResult
+            ? 'Có thể phê duyệt'
+            : 'Rủi ro cao — không nên phê duyệt'
         : '';
     const predictionVerdictClass = hasPredictionResult
-        ? prediction.predictionResult
+        ? effectiveResult
             ? 'text-emerald-600'
             : 'text-rose-600'
         : 'text-slate-500';
     const predictionConfidenceText =
-        prediction && prediction.confidence != null
-            ? (prediction.confidence * 100).toFixed(1) + '%'
+        effectiveConfidence != null
+            ? (effectiveConfidence * 100).toFixed(1) + '%'
             : 'N/A';
     
     modalBody.innerHTML = `
@@ -277,7 +284,7 @@ function renderLoanModal(loan, customer, prediction) {
                         <p class="font-bold ${predictionVerdictClass}">${predictionVerdictText}</p>
                     </div>
                     <div class="text-right">
-                        <p class="text-[11px] text-gray-500 uppercase font-semibold tracking-wide">Độ tin cậy</p>
+                        <p class="text-[11px] text-gray-500 uppercase font-semibold tracking-wide">Xác suất vỡ nợ</p>
                         <p class="font-bold text-gray-900 dark:text-white">${predictionConfidenceText}</p>
                     </div>
                 </div>
@@ -299,7 +306,7 @@ function renderLoanModal(loan, customer, prediction) {
                         <p class="text-sm font-semibold text-gray-900 dark:text-white">${loan.decision}</p>
                     </div>
                     <div>
-                        <p class="text-xs text-gray-500">Độ tin cậy</p>
+                        <p class="text-xs text-gray-500">Xác suất vỡ nợ</p>
                         <p class="text-sm font-semibold text-gray-900 dark:text-white">${loan.predictionConfidence ? (loan.predictionConfidence * 100).toFixed(2) + '%' : 'N/A'}</p>
                     </div>
                     <div>
@@ -317,6 +324,12 @@ function renderLoanModal(loan, customer, prediction) {
                     <span class="material-symbols-outlined text-lg">psychology</span>
                     Xem dự đoán
                 </button>
+                ${loan.predictionLabel == null && loan.predictionConfidence == null && canWrite() ? `
+                <button onclick="retryPredictionForLoan('${loan.id}')" class="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-semibold hover:bg-amber-700 transition-colors">
+                    <span class="material-symbols-outlined text-lg">replay</span>
+                    Chạy lại dự đoán
+                </button>
+                ` : ''}
                 ` : canWrite() ? `
                 <button onclick="triggerPredictionForLoan('${loan.id}')" class="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors">
                     <span class="material-symbols-outlined text-lg">auto_awesome</span>
@@ -358,6 +371,31 @@ window.triggerPredictionForLoan = async function(loanId) {
     } catch (error) {
         console.error('Error triggering prediction:', error);
         showToast('Error triggering prediction: ' + error.message, { type: 'error' });
+    }
+};
+
+window.retryPredictionForLoan = async function(loanId) {
+    const staffId = getUserId();
+    if (!staffId) {
+        showToast('Staff ID not found. Please login again.', { type: 'error' });
+        return;
+    }
+
+    const confirmed = await showConfirm(
+        'Dự đoán có thể đang bị treo. Reset và chạy lại dự đoán AI?',
+        { confirmText: 'Chạy lại', cancelText: 'Hủy' },
+    );
+    if (!confirmed) return;
+
+    try {
+        await resetLoanPrediction(loanId, staffId);
+        await triggerLoanPrediction(loanId, staffId);
+        showToast('Đã reset và kích hoạt lại dự đoán AI.', { type: 'success' });
+        await loadLoans();
+        openPredictionModal(loanId, null);
+    } catch (error) {
+        console.error('Error retrying prediction:', error);
+        showToast('Không thể chạy lại dự đoán: ' + error.message, { type: 'error' });
     }
 };
 
@@ -408,10 +446,22 @@ function renderLoans(loans) {
         const rate         = loan.requestedInterestRate != null ? `${loan.requestedInterestRate}%` : '—';
         const createdDate  = formatDate(loan.createdAt);
 
-        const canDecide =
+        const canReject =
             canWrite() &&
+            (status === 'PENDING' || status === 'UNDER_REVIEW') &&
+            (!loan.decision || loan.decision === 'PENDING');
+
+        const canApprove =
+            canWrite() &&
+            status === 'UNDER_REVIEW' &&
             (!loan.decision || loan.decision === 'PENDING') &&
-            (status === 'PENDING' || status === 'UNDER_REVIEW');
+            loan.predictionLabel != null;
+
+        const canRetryPrediction =
+            canWrite() &&
+            loan.predictionId &&
+            loan.predictionLabel == null &&
+            loan.predictionConfidence == null;
 
         const dotClass = STATUS_DOT[status] || 'bg-gray-400';
 
@@ -456,18 +506,35 @@ function renderLoans(loans) {
                     <span class="material-symbols-outlined text-[20px]">auto_awesome</span>
                 </button>
                 ` : ''}
-                ${canDecide ? `
+                ${canRetryPrediction ? `
+                <button
+                    onclick="retryPredictionForLoan('${loan.id}')"
+                    class="w-8 h-8 flex items-center justify-center hover:bg-amber-50 text-gray-400 hover:text-amber-600 rounded-lg transition-colors"
+                    title="Chạy lại dự đoán">
+                    <span class="material-symbols-outlined text-[20px]">replay</span>
+                </button>
+                ` : ''}
+                ${canReject ? `
+                <button
+                    onclick="rejectLoan('${loan.id}')"
+                    class="w-8 h-8 flex items-center justify-center hover:bg-rose-50 text-gray-400 hover:text-rose-600 rounded-lg transition-colors"
+                    title="Từ chối">
+                    <span class="material-symbols-outlined text-[20px]">cancel</span>
+                </button>
+                ` : ''}
+                ${canApprove ? `
                 <button
                     onclick="approveLoan('${loan.id}')"
                     class="w-8 h-8 flex items-center justify-center hover:bg-emerald-50 text-gray-400 hover:text-emerald-600 rounded-lg transition-colors"
                     title="Phê duyệt">
                     <span class="material-symbols-outlined text-[20px]">check_circle</span>
                 </button>
+                ` : canReject && loan.predictionId && loan.predictionLabel == null ? `
                 <button
-                    onclick="rejectLoan('${loan.id}')"
-                    class="w-8 h-8 flex items-center justify-center hover:bg-rose-50 text-gray-400 hover:text-rose-600 rounded-lg transition-colors"
-                    title="Từ chối">
-                    <span class="material-symbols-outlined text-[20px]">cancel</span>
+                    disabled
+                    class="w-8 h-8 flex items-center justify-center text-gray-300 rounded-lg cursor-not-allowed"
+                    title="Chờ kết quả dự đoán AI trước khi phê duyệt">
+                    <span class="material-symbols-outlined text-[20px]">check_circle</span>
                 </button>
                 ` : ''}
             </div>`;
@@ -833,6 +900,49 @@ function getPredictionModalEls() {
     };
 }
 
+function updatePredictionModalActions(currentLoan, currentPrediction) {
+    const els = getPredictionModalEls();
+    if (!els.btnApprove || !els.btnReject) return;
+
+    const status = currentLoan?.status;
+    const hasMlResult =
+        currentLoan?.predictionLabel != null ||
+        (currentPrediction?.predictionResult != null);
+
+    const canRejectLoan =
+        canWrite() &&
+        currentLoan &&
+        (status === 'UNDER_REVIEW' || status === 'PENDING') &&
+        (!currentLoan.decision || currentLoan.decision === 'PENDING');
+
+    const canApproveLoan =
+        canWrite() &&
+        currentLoan &&
+        status === 'UNDER_REVIEW' &&
+        (!currentLoan.decision || currentLoan.decision === 'PENDING') &&
+        hasMlResult;
+
+    if (canRejectLoan) {
+        els.btnReject.classList.remove('hidden');
+        els.btnReject.disabled = false;
+    } else {
+        els.btnReject.classList.add('hidden');
+    }
+
+    if (currentLoan && canWrite() && status === 'UNDER_REVIEW' &&
+        (!currentLoan.decision || currentLoan.decision === 'PENDING')) {
+        els.btnApprove.classList.remove('hidden');
+        els.btnApprove.disabled = !canApproveLoan;
+        els.btnApprove.title = canApproveLoan
+            ? 'Phê duyệt khoản vay'
+            : 'Chờ kết quả dự đoán AI trước khi phê duyệt';
+        els.btnApprove.classList.toggle('opacity-50', !canApproveLoan);
+        els.btnApprove.classList.toggle('cursor-not-allowed', !canApproveLoan);
+    } else {
+        els.btnApprove.classList.add('hidden');
+    }
+}
+
 async function openPredictionModal(loanId, predictionId) {
     _predModalLoanId       = loanId;
     _predModalPredictionId = predictionId;
@@ -851,20 +961,32 @@ async function openPredictionModal(loanId, predictionId) {
     renderLoadingSkeleton(els);
 
     try {
-        const { currentLoan } = await loadAndRenderPrediction(loanId, predictionId, els);
+        const data = await loadAndRenderPrediction(loanId, predictionId, els);
+        updatePredictionModalActions(data.currentLoan, data.currentPrediction);
 
-        // Wire approve / reject buttons
         if (els.btnApprove) {
             els.btnApprove.onclick = () => {
+                if (els.btnApprove.disabled) return;
                 closePredictionModal();
-                approveLoan(currentLoan?.id || loanId);
+                approveLoan(data.currentLoan?.id || loanId);
             };
         }
         if (els.btnReject) {
             els.btnReject.onclick = () => {
                 closePredictionModal();
-                rejectLoan(currentLoan?.id || loanId);
+                rejectLoan(data.currentLoan?.id || loanId);
             };
+        }
+
+        const pending =
+            data.currentPrediction?.predictionResult == null &&
+            data.currentLoan?.predictionLabel == null &&
+            data.currentPrediction?.status !== 'FAILED';
+
+        if (pending) {
+            startPredictionPolling(loanId, predictionId, els, 4000, (pollData) => {
+                updatePredictionModalActions(pollData.currentLoan, pollData.currentPrediction);
+            });
         }
     } catch (error) {
         console.error('Error loading prediction modal:', error);
@@ -881,6 +1003,7 @@ async function openPredictionModal(loanId, predictionId) {
 }
 
 window.closePredictionModal = function() {
+    stopPredictionPolling();
     const modal = document.getElementById('prediction-result-modal');
     if (modal) modal.classList.add('hidden');
     _predModalLoanId       = null;
@@ -894,9 +1017,13 @@ window.refreshPredictionModal = function() {
         if (els.btnApprove) els.btnApprove.classList.add('hidden');
         if (els.btnReject)  els.btnReject.classList.add('hidden');
         renderLoadingSkeleton(els);
-        loadAndRenderPrediction(_predModalLoanId, _predModalPredictionId, els).catch((err) => {
-            showToast('Error refreshing: ' + err.message, { type: 'error' });
-        });
+        loadAndRenderPrediction(_predModalLoanId, _predModalPredictionId, els)
+            .then((data) => {
+                updatePredictionModalActions(data.currentLoan, data.currentPrediction);
+            })
+            .catch((err) => {
+                showToast('Error refreshing: ' + err.message, { type: 'error' });
+            });
     }
 };
 

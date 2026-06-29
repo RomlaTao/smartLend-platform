@@ -194,12 +194,15 @@ export async function submitCreateLoanForm(customerId, staffId) {
         customerId, loanIntent, requestedAmount, requestedTermMonths, requestedInterestRate,
     });
 
-    // Attempt to trigger prediction (non-fatal)
+    let predictionTriggered = false;
+    let predictionError = null;
     try {
         await triggerLoanPrediction(result.id, staffId);
+        predictionTriggered = true;
     } catch (predErr) {
-        console.warn('[create-loan-renderer] Prediction trigger failed:', predErr.message);
+        predictionError = predErr.message || 'Unknown error';
+        console.warn('[create-loan-renderer] Prediction trigger failed:', predictionError);
     }
 
-    return result;
+    return { result, predictionTriggered, predictionError };
 }

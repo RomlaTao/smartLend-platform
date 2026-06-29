@@ -51,14 +51,12 @@ async function request(path, options = {}) {
  * Create a new prediction
  * Maps to POST /api/predictions
  *
- * @param {Object} payload - Body for PredictionRequestDto
+ * @param {Object} payload - Body for PredictionRequestDto (customerId, loanIntent, loanAmnt, loanIntRate)
  * @param {string} staffId - UUID to send as X-User-Id header
- * @param {string} [staffName] - Staff name to send as query param
  * @returns {Promise<Object>} PredictionResponseDto
  */
-export async function createPrediction(payload, staffId, staffName) {
-  const query = staffName ? `?staffName=${encodeURIComponent(staffName)}` : '';
-  return request(`/api/predictions${query}`, {
+export async function createPrediction(payload, staffId) {
+  return request('/api/predictions', {
     method: 'POST',
     body: JSON.stringify(payload),
     headers: staffId ? { 'X-User-Id': staffId } : {},

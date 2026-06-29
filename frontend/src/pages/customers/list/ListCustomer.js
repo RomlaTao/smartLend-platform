@@ -666,10 +666,12 @@ function init() {
     const btn = document.getElementById('clm-submit-btn');
     if (btn) { btn.disabled = true; btn.innerHTML = '<span class="material-symbols-outlined text-base animate-spin">progress_activity</span> Đang tạo...'; }
     try {
-      await submitCreateLoanForm(_clmCustomerId, staffId);
+      const { predictionTriggered } = await submitCreateLoanForm(_clmCustomerId, staffId);
       const successEl = document.getElementById('cl-form-success');
       if (successEl) {
-        document.getElementById('cl-success-text').textContent = 'Tạo đơn vay thành công và đã kích hoạt dự đoán!';
+        document.getElementById('cl-success-text').textContent = predictionTriggered
+          ? 'Tạo đơn vay thành công! Dự đoán AI đang chạy...'
+          : 'Tạo đơn vay thành công. Dự đoán chưa chạy được — vào danh sách khoản vay để chạy lại.';
         successEl.classList.remove('hidden');
       }
       await loadCustomers(currentPage);

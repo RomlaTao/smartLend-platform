@@ -4,7 +4,7 @@
  */
 
 import { getAllPredictions, createPrediction } from '/src/services/prediction.service.js';
-import { loadAndRenderPrediction, renderLoadingSkeleton } from '/src/pages/loan/predict/prediction-result-renderer.js';
+import { loadAndRenderPrediction, renderLoadingSkeleton, startPredictionPolling, stopPredictionPolling } from '/src/pages/loan/predict/prediction-result-renderer.js';
 import { loadAndRenderMyProfile } from '/src/pages/share/my-profile/my-profile-renderer.js';
 import { loadAndRenderEditMyProfileForm, submitEditMyProfileForm, showEditMyProfileError } from '/src/pages/share/edit-my-profile/edit-my-profile-renderer.js';
 
@@ -129,7 +129,7 @@ function getResultBadge(predictionResult) {
     : '<div class="flex items-center gap-2 px-3 py-1 bg-red-50 rounded-lg w-fit"><span class="size-1.5 bg-red-500 rounded-full"></span><span class="text-xs font-bold text-red-600">Rủi ro vỡ nợ</span></div>';
 }
 
-function getConfidenceBar(confidence) {
+function getDefaultRiskBar(confidence) {
   if (confidence === null || confidence === undefined) {
     return '<span class="text-slate-400 text-xs font-medium">—</span>';
   }
@@ -140,7 +140,7 @@ function getConfidenceBar(confidence) {
       <div class="flex-1 w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
         <div class="${color} h-full" style="width:${pct}%"></div>
       </div>
-      <span class="text-xs font-bold text-slate-600">${pct}%</span>
+      <span class="text-xs font-bold text-slate-600" title="Xác suất vỡ nợ">${pct}%</span>
     </div>
   `;
 }
@@ -222,7 +222,7 @@ function renderPredictionRow(p) {
       <td class="px-8 py-5">${shortId(p.employeeId)}</td>
       <td class="px-8 py-5 text-center">${getStatusBadge(p.status)}</td>
       <td class="px-8 py-5">${getResultBadge(p.predictionResult)}</td>
-      <td class="px-8 py-5">${getConfidenceBar(p.confidence)}</td>
+      <td class="px-8 py-5">${getDefaultRiskBar(p.confidence)}</td>
       <td class="px-8 py-5 text-slate-500 text-xs font-medium tabular-nums">${formatDateTime(p.createdAt)}</td>
       <td class="px-8 py-5 text-right">
         <div class="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -494,7 +494,14 @@ window.openPredictionModal = async function(loanId, predictionId) {
     renderLoadingSkeleton(els);
 
     try {
-        await loadAndRenderPrediction(loanId, predictionId, els);
+        const data = await loadAndRenderPrediction(loanId, predictionId, els);
+        const pending =
+            data.currentPrediction?.predictionResult == null &&
+            data.currentPrediction?.status !== 'FAILED';
+
+        if (pending) {
+            startPredictionPolling(loanId, predictionId, els);
+        }
     } catch (error) {
         console.error('Error loading prediction modal:', error);
         if (els.riskCardEl) {
@@ -509,6 +516,7 @@ window.openPredictionModal = async function(loanId, predictionId) {
 };
 
 window.closePredictionModal = function() {
+    stopPredictionPolling();
     const modal = document.getElementById('prediction-result-modal');
     if (modal) modal.classList.add('hidden');
     _predModalLoanId       = null;
@@ -526,14 +534,12 @@ window.refreshPredictionModal = function() {
 // ─── Create Prediction Modal ──────────────────────────────────────────────────
 
 function _cpResetForm() {
-  ['cp-customer-id', 'cp-loan-amnt', 'cp-loan-int-rate', 'cp-loan-percent-income'].forEach((id) => {
+  ['cp-customer-id', 'cp-loan-amnt', 'cp-loan-int-rate'].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
-  ['cp-loan-intent', 'cp-loan-status'].forEach((id) => {
-    const el = document.getElementById(id);
-    if (el) el.value = '';
-  });
+  const intentEl = document.getElementById('cp-loan-intent');
+  if (intentEl) intentEl.value = '';
   document.getElementById('cp-error')?.classList.add('hidden');
   document.getElementById('cp-success')?.classList.add('hidden');
 }
@@ -565,19 +571,15 @@ window.submitCreatePrediction = async function () {
   document.getElementById('cp-error')?.classList.add('hidden');
   document.getElementById('cp-success')?.classList.add('hidden');
 
-  const customerId       = document.getElementById('cp-customer-id')?.value.trim();
-  const loanAmnt         = document.getElementById('cp-loan-amnt')?.value;
-  const loanIntRate      = document.getElementById('cp-loan-int-rate')?.value;
-  const loanIntent       = document.getElementById('cp-loan-intent')?.value;
-  const loanStatus       = document.getElementById('cp-loan-status')?.value;
-  const loanPercentIncome = document.getElementById('cp-loan-percent-income')?.value;
+  const customerId  = document.getElementById('cp-customer-id')?.value.trim();
+  const loanAmnt    = document.getElementById('cp-loan-amnt')?.value;
+  const loanIntRate = document.getElementById('cp-loan-int-rate')?.value;
+  const loanIntent  = document.getElementById('cp-loan-intent')?.value;
 
-  if (!customerId)        return _cpShowError('Vui lòng nhập Mã khách hàng.');
-  if (!loanAmnt)          return _cpShowError('Vui lòng nhập Số tiền vay.');
-  if (!loanIntRate)       return _cpShowError('Vui lòng nhập Lãi suất.');
-  if (!loanIntent)        return _cpShowError('Vui lòng chọn Mục đích vay.');
-  if (!loanStatus)        return _cpShowError('Vui lòng chọn Trạng thái khoản vay.');
-  if (!loanPercentIncome) return _cpShowError('Vui lòng nhập Tỷ lệ vay / thu nhập.');
+  if (!customerId)  return _cpShowError('Vui lòng nhập Mã khách hàng.');
+  if (!loanAmnt)    return _cpShowError('Vui lòng nhập Số tiền vay.');
+  if (!loanIntRate) return _cpShowError('Vui lòng nhập Lãi suất.');
+  if (!loanIntent)  return _cpShowError('Vui lòng chọn Mục đích vay.');
 
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   if (!uuidRegex.test(customerId)) return _cpShowError('Mã khách hàng không đúng định dạng UUID.');
@@ -585,10 +587,8 @@ window.submitCreatePrediction = async function () {
   const payload = {
     customerId,
     loanIntent,
-    loanAmnt:          parseFloat(loanAmnt),
-    loanIntRate:       parseFloat(loanIntRate),
-    loanStatus,
-    loanPercentIncome: parseFloat(loanPercentIncome),
+    loanAmnt:    parseFloat(loanAmnt),
+    loanIntRate: parseFloat(loanIntRate),
   };
 
   const submitBtn = document.getElementById('cp-submit-btn');
@@ -598,9 +598,8 @@ window.submitCreatePrediction = async function () {
   }
 
   try {
-    const staffId    = getStoredValue('smartlend_user_id');
-    const displayName = getStoredValue(NAME_KEY) || getStoredValue(EMAIL_KEY);
-    await createPrediction(payload, staffId || undefined, displayName || undefined);
+    const staffId = getStoredValue('smartlend_user_id');
+    await createPrediction(payload, staffId || undefined);
     _cpShowSuccess('Dự đoán đã được tạo thành công! Hệ thống đang xử lý kết quả.');
     loadPredictions(0);
     setTimeout(() => window.closeCreatePredictionModal(), 2000);

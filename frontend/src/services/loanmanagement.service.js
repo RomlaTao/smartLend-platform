@@ -75,6 +75,21 @@ export async function triggerLoanPrediction(loanApplicationId, staffId) {
 }
 
 /**
+ * Reset prediction state when ML is stuck (clears predictionId/label/confidence).
+ * @param {string} loanApplicationId - UUID loan application
+ * @param {string} staffId - UUID staff (header X-User-Id)
+ * @returns {Promise<LoanApplicationResponseDto>}
+ */
+export async function resetLoanPrediction(loanApplicationId, staffId) {
+  return request(`/api/loan-applications/id/${loanApplicationId}/reset-prediction`, {
+    method: 'POST',
+    headers: {
+      'X-User-Id': staffId,
+    },
+  });
+}
+
+/**
  * Lấy đơn xin vay theo id.
  * @param {string} id - UUID loan application
  */

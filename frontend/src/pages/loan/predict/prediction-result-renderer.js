@@ -16,6 +16,25 @@ export function formatCurrency(amount) {
     }).format(amount);
 }
 
+export function formatUsd(amount) {
+    if (amount == null) return 'N/A';
+    return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+    }).format(amount);
+}
+
+function _hasSnapshotData(loan) {
+    return loan != null && (
+        loan.snapshotPersonAge != null ||
+        loan.snapshotPersonIncome != null ||
+        loan.snapshotLoanAmnt != null ||
+        loan.snapshotLoanPercentIncome != null
+    );
+}
+
 export function getDaysAgo(dateString) {
     if (!dateString) return 0;
     const diffTime = Math.abs(new Date() - new Date(dateString));
@@ -32,28 +51,59 @@ export function field(label, value) {
 
 // ─── Card renderers ──────────────────────────────────────────────────────────
 
-export function renderCustomerProfile(containerEl, customer) {
+export function renderCustomerProfile(containerEl, customer, loan = null) {
+    const useSnapshot = _hasSnapshotData(loan);
+    const note = useSnapshot
+        ? '<p class="col-span-2 text-[11px] text-slate-400 italic mb-1">(tại thời điểm nộp đơn)</p>'
+        : '';
+
+    const age = useSnapshot && loan.snapshotPersonAge != null
+        ? loan.snapshotPersonAge
+        : (customer?.personAge ?? 'N/A');
+    const income = useSnapshot && loan.snapshotPersonIncome != null
+        ? formatUsd(loan.snapshotPersonIncome)
+        : (customer?.personIncome ? formatCurrency(customer.personIncome) : 'N/A');
+    const homeOwnership = useSnapshot && loan.snapshotPersonHomeOwnership
+        ? loan.snapshotPersonHomeOwnership
+        : (customer?.personHomeOwnership || 'N/A');
+
     containerEl.innerHTML = `
-        ${field('Họ và tên', customer.fullName || 'N/A')}
-        ${field('Email', customer.email || 'N/A')}
-        ${field('Tuổi', customer.personAge ?? 'N/A')}
-        ${field('Thu nhập hàng năm', customer.personIncome ? formatCurrency(customer.personIncome) : 'N/A')}
-        ${field('Hình thức sở hữu nhà', customer.personHomeOwnership || 'N/A')}
-        ${field('Thâm niên công việc', customer.personEmpLength != null ? `${customer.personEmpLength} năm` : 'N/A')}
+        ${note}
+        ${field('Họ và tên', customer?.fullName || 'N/A')}
+        ${field('Email', customer?.email || 'N/A')}
+        ${field('Tuổi', age)}
+        ${field('Thu nhập hàng năm', income)}
+        ${field('Hình thức sở hữu nhà', homeOwnership)}
+        ${field('Thâm niên công việc', customer?.personEmpLength != null ? `${customer.personEmpLength} năm` : 'N/A')}
     `;
 }
 
 export function renderLoanDetails(containerEl, loan, customer) {
-    const percentIncome = (customer.personIncome && loan.requestedAmount)
-        ? ((loan.requestedAmount / customer.personIncome) * 100).toFixed(1) + '%'
-        : 'N/A';
-    const daysAgo = getDaysAgo(loan.createdAt);
+    const useSnapshot = _hasSnapshotData(loan);
+    const note = useSnapshot
+        ? '<p class="col-span-2 text-[11px] text-slate-400 italic mb-1">(tại thời điểm nộp đơn)</p>'
+        : '';
+
+    const loanGrade = loan?.loanGrade || customer?.loanGrade || 'N/A';
+    const amountDisplay = useSnapshot && loan.snapshotLoanAmnt != null
+        ? formatUsd(loan.snapshotLoanAmnt)
+        : (loan?.requestedAmount ? formatCurrency(loan.requestedAmount) : 'N/A');
+
+    let percentIncome = 'N/A';
+    if (useSnapshot && loan.snapshotLoanPercentIncome != null) {
+        percentIncome = (loan.snapshotLoanPercentIncome * 100).toFixed(1) + '%';
+    } else if (customer?.personIncome && loan?.requestedAmount) {
+        percentIncome = ((loan.requestedAmount / customer.personIncome) * 100).toFixed(1) + '%';
+    }
+
+    const daysAgo = getDaysAgo(loan?.createdAt);
     containerEl.innerHTML = `
-        ${field('Mục đích vay', `<span class="inline-block px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-slate-700 dark:text-slate-300 text-xs font-bold uppercase">${loan.loanIntent || 'N/A'}</span>`)}
-        ${field('Hạng tín dụng', `<span class="text-primary font-black text-lg">${customer.loanGrade || 'N/A'}</span>`)}
-        ${field('Số tiền vay', loan.requestedAmount ? formatCurrency(loan.requestedAmount) : 'N/A')}
-        ${field('Kỳ hạn', loan.requestedTermMonths != null ? `${loan.requestedTermMonths} tháng` : 'N/A')}
-        ${field('Lãi suất', loan.requestedInterestRate != null ? `${loan.requestedInterestRate}% (Cố định)` : 'N/A')}
+        ${note}
+        ${field('Mục đích vay', `<span class="inline-block px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-slate-700 dark:text-slate-300 text-xs font-bold uppercase">${loan?.loanIntent || 'N/A'}</span>`)}
+        ${field('Hạng tín dụng', `<span class="text-primary font-black text-lg">${loanGrade}</span>`)}
+        ${field('Số tiền vay', amountDisplay)}
+        ${field('Kỳ hạn', loan?.requestedTermMonths != null ? `${loan.requestedTermMonths} tháng` : 'N/A')}
+        ${field('Lãi suất', loan?.requestedInterestRate != null ? `${loan.requestedInterestRate}% (Cố định)` : 'N/A')}
         ${field('Vay / Thu nhập', percentIncome)}
         ${field('Ngày nộp', daysAgo > 0 ? `${daysAgo} ngày trước` : 'Hôm nay')}
     `;
@@ -380,6 +430,16 @@ export async function loadAndRenderPrediction(loanId, predictionId, els) {
             : null;
     }
 
+    if (currentLoan?.predictionLabel != null) {
+        const merged = { ...(currentPrediction || {}) };
+        if (merged.predictionResult == null) {
+            merged.predictionResult = currentLoan.predictionLabel;
+            merged.confidence = currentLoan.predictionConfidence ?? merged.confidence;
+            merged.status = merged.status || 'COMPLETED';
+            currentPrediction = merged;
+        }
+    }
+
     // Title
     if (els.titleEl) {
         const loanIdShort = currentLoan?.id ? currentLoan.id.substring(0, 8).toUpperCase() : '--------';
@@ -390,8 +450,12 @@ export async function loadAndRenderPrediction(loanId, predictionId, els) {
     if (els.statusBadgeEl) renderStatusBadge(els.statusBadgeEl, currentPrediction);
 
     // Customer + loan cards
-    if (els.customerProfileEl && currentCustomer) renderCustomerProfile(els.customerProfileEl, currentCustomer);
-    if (els.loanDetailsEl && currentLoan && currentCustomer) renderLoanDetails(els.loanDetailsEl, currentLoan, currentCustomer);
+    if (els.customerProfileEl && currentCustomer) {
+        renderCustomerProfile(els.customerProfileEl, currentCustomer, currentLoan);
+    }
+    if (els.loanDetailsEl && currentLoan && currentCustomer) {
+        renderLoanDetails(els.loanDetailsEl, currentLoan, currentCustomer);
+    }
 
     // Risk score card
     if (els.riskCardEl) renderRiskAssessment(els.riskCardEl, currentPrediction);
@@ -400,4 +464,48 @@ export async function loadAndRenderPrediction(loanId, predictionId, els) {
     if (els.explanationBodyEl) renderExplanationSection(els.explanationBodyEl, currentPrediction);
 
     return { currentLoan, currentCustomer, currentPrediction };
+}
+
+// ─── Auto-poll for pending predictions ───────────────────────────────────────
+
+let _pollTimerId = null;
+
+export function stopPredictionPolling() {
+    if (_pollTimerId != null) {
+        clearInterval(_pollTimerId);
+        _pollTimerId = null;
+    }
+}
+
+function _isPredictionComplete(loan, prediction) {
+    if (prediction?.predictionResult != null) return true;
+    if (loan?.predictionLabel != null) return true;
+    if (prediction?.status === 'FAILED') return true;
+    return false;
+}
+
+/**
+ * Poll until prediction completes or modal closes.
+ * @param {string|null} loanId
+ * @param {string|null} predictionId
+ * @param {Object} els - DOM elements for re-render
+ * @param {number} [intervalMs=4000]
+ * @param {Function} [onUpdate] - callback after each poll with loadAndRenderPrediction result
+ */
+export function startPredictionPolling(loanId, predictionId, els, intervalMs = 4000, onUpdate) {
+    stopPredictionPolling();
+
+    async function poll() {
+        try {
+            const data = await loadAndRenderPrediction(loanId, predictionId, els);
+            if (onUpdate) onUpdate(data);
+            if (_isPredictionComplete(data.currentLoan, data.currentPrediction)) {
+                stopPredictionPolling();
+            }
+        } catch (e) {
+            console.warn('[prediction-poll] Poll failed:', e.message);
+        }
+    }
+
+    _pollTimerId = setInterval(poll, intervalMs);
 }
