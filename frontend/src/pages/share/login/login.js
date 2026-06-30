@@ -31,7 +31,9 @@ function getLoginElements() {
   }
 
   const emailInput = form.querySelector('input[type="text"]');
-  const passwordInput = form.querySelector('input[type="password"]');
+  const passwordInput = document.getElementById('login-password');
+  const passwordToggle = document.getElementById('password-toggle');
+  const passwordToggleIcon = document.getElementById('password-toggle-icon');
   const rememberCheckbox = document.getElementById('remember');
   const submitBtn = form.querySelector('button[type="submit"]');
 
@@ -47,11 +49,26 @@ function getLoginElements() {
     form,
     emailInput,
     passwordInput,
+    passwordToggle,
+    passwordToggleIcon,
     rememberCheckbox,
     submitBtn,
     labelSpan,
     spinner,
   };
+}
+
+function initPasswordToggle(passwordInput, passwordToggle, passwordToggleIcon) {
+  if (!passwordInput || !passwordToggle) return;
+
+  passwordToggle.addEventListener('click', () => {
+    const isHidden = passwordInput.type === 'password';
+    passwordInput.type = isHidden ? 'text' : 'password';
+    if (passwordToggleIcon) {
+      passwordToggleIcon.textContent = isHidden ? 'visibility' : 'visibility_off';
+    }
+    passwordToggle.setAttribute('aria-label', isHidden ? 'Ẩn mật khẩu' : 'Hiện mật khẩu');
+  });
 }
 
 function setLoadingState(submitBtn, labelSpan, spinner, isLoading) {
@@ -135,9 +152,10 @@ function init() {
   const els = getLoginElements();
   if (!els) return;
 
-  const { form, passwordInput } = els;
+  const { form, passwordInput, passwordToggle, passwordToggleIcon } = els;
 
   form.addEventListener('submit', handleLogin);
+  initPasswordToggle(passwordInput, passwordToggle, passwordToggleIcon);
 
   if (passwordInput) {
     passwordInput.addEventListener('keypress', (e) => {

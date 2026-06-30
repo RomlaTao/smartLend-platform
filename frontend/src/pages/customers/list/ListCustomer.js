@@ -7,6 +7,14 @@ import { loadAndRenderEditMyProfileForm, submitEditMyProfileForm, showEditMyProf
 import { loadAndRenderCustomerView, loadAndRenderCustomerEditForm, submitCustomerEditForm, showCustomerFormError } from '/src/pages/customers/edit/edit-customer-renderer.js';
 import { renderCreateCustomerFormHtml, submitCreateCustomerForm, showCreateCustomerError, resetCreateCustomerForm } from '/src/pages/customers/create/create-customer-renderer.js';
 import { renderCreateLoanFormHtml, initCreateLoanFormListeners, loadCustomerInfoForLoan, submitCreateLoanForm, showCreateLoanError, resetCreateLoanForm } from '/src/pages/loan/create/create-loan-renderer.js';
+import { showConfirm } from '/src/utils/notify.js';
+import {
+  EMPTY_LABEL,
+  formatCurrencyVnd,
+  formatHomeOwnership,
+  formatLoanGradeLabel,
+  orEmpty,
+} from '/src/utils/formatter.js';
 
 const ACCESS_TOKEN_KEY = 'smartlend_access_token';
 const ROLE_KEY = 'smartlend_role';
@@ -129,12 +137,12 @@ function renderCustomers(customers) {
     // Generate initials
     const initials = customer.fullName
       ? customer.fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
-      : 'NA';
+      : '—';
     
     // Determine loan grade info
     let gradeColor = 'gray';
     let gradeLabel = 'Không xác định';
-    let gradeValue = 'N/A';
+    let gradeValue = EMPTY_LABEL;
     
     // Handle loanGrade - could be string or object
     const loanGrade = typeof customer.loanGrade === 'object' 
@@ -143,34 +151,29 @@ function renderCustomers(customers) {
     
     if (loanGrade) {
       gradeValue = loanGrade;
+      gradeLabel = formatLoanGradeLabel(loanGrade);
       switch (loanGrade) {
         case 'A':
           gradeColor = 'green';
-          gradeLabel = 'Xuất sắc';
           break;
         case 'B':
           gradeColor = 'green';
-          gradeLabel = 'Tốt';
           break;
         case 'C':
           gradeColor = 'yellow';
-          gradeLabel = 'Trung bình';
           break;
         case 'D':
           gradeColor = 'orange';
-          gradeLabel = 'Dưới trung bình';
           break;
         case 'E':
           gradeColor = 'orange';
-          gradeLabel = 'Kém';
           break;
         case 'F':
         case 'G':
           gradeColor = 'red';
-          gradeLabel = 'Rất kém';
           break;
         default:
-          gradeValue = 'N/A';
+          gradeValue = EMPTY_LABEL;
           gradeLabel = 'Không xác định';
       }
     }
@@ -181,7 +184,7 @@ function renderCustomers(customers) {
       : customer.personHomeOwnership;
     
     let ownershipColor = 'purple';
-    let ownershipDisplay = homeOwnership || 'N/A';
+    const ownershipDisplay = formatHomeOwnership(homeOwnership);
     
     if (homeOwnership === 'OWN') ownershipColor = 'green';
     else if (homeOwnership === 'MORTGAGE') ownershipColor = 'blue';
@@ -190,19 +193,19 @@ function renderCustomers(customers) {
     else ownershipColor = 'gray';
     
     // Format income (VND/năm)
-    const income = customer.personIncome 
-      ? `${customer.personIncome.toLocaleString('vi-VN')} VND/năm`
-      : 'N/A';
+    const income = customer.personIncome != null
+      ? `${formatCurrencyVnd(customer.personIncome)}/năm`
+      : EMPTY_LABEL;
     
     // Format age
-    const age = customer.personAge 
+    const age = customer.personAge != null
       ? `${customer.personAge} tuổi`
-      : 'N/A';
+      : EMPTY_LABEL;
     
     // Format employment length
     const empLength = customer.personEmpLength != null
       ? `${customer.personEmpLength} năm kinh nghiệm`
-      : 'N/A';
+      : EMPTY_LABEL;
     
     // Format credit history length
     const creditHistLength = customer.cbPersonCredHistLength != null && customer.cbPersonCredHistLength !== undefined
@@ -222,9 +225,9 @@ function renderCustomers(customers) {
           <div class="flex items-center gap-3">
             <div class="size-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">${initials}</div>
             <div>
-              <p class="font-bold text-sm text-gray-900 dark:text-white">${customer.fullName || 'N/A'}</p>
+              <p class="font-bold text-sm text-gray-900 dark:text-white">${orEmpty(customer.fullName)}</p>
               <p class="text-xs text-gray-500">${customer.email || 'Không có email'}</p>
-              <p class="text-xs text-gray-400">ID: ${customer.customerSlug || 'N/A'}</p>
+              <p class="text-xs text-gray-400">Mã: ${orEmpty(customer.customerSlug)}</p>
             </div>
           </div>
         </td>
@@ -237,7 +240,7 @@ function renderCustomers(customers) {
         <td class="px-6 py-4">
           <div class="space-y-1">
             <p class="text-sm font-bold text-gray-900 dark:text-white">${income}</p>
-            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-${ownershipColor}-100 text-${ownershipColor}-700 dark:bg-${ownershipColor}-900/30 dark:text-${ownershipColor}-400 border border-${ownershipColor}-200 dark:border-${ownershipColor}-800">${ownershipDisplay}</span>
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-${ownershipColor}-100 text-${ownershipColor}-700 dark:bg-${ownershipColor}-900/30 dark:text-${ownershipColor}-400 border border-${ownershipColor}-200 dark:border-${ownershipColor}-800">${ownershipDisplay}</span>
           </div>
         </td>
         <td class="px-6 py-4">
@@ -315,8 +318,8 @@ async function loadCustomers(page = 0) {
           <td colspan="6" class="px-6 py-12 text-center">
             <div class="flex flex-col items-center gap-3">
               <span class="material-symbols-outlined text-red-300 text-5xl">error</span>
-              <p class="text-red-500">Error loading customers: ${error.message}</p>
-              <p class="text-xs text-gray-500">Check console for details</p>
+              <p class="text-red-500">Không thể tải danh sách khách hàng: ${error.message}</p>
+              <p class="text-xs text-gray-500">Vui lòng kiểm tra console để biết thêm chi tiết</p>
             </div>
           </td>
         </tr>
@@ -382,11 +385,11 @@ function updateResultsText() {
   }
   
   if (totalElements === 0) {
-    resultsText.innerHTML = 'No customers found';
+    resultsText.innerHTML = 'Không tìm thấy khách hàng';
   } else {
     const start = currentPage * pageSize + 1;
     const end = Math.min((currentPage + 1) * pageSize, totalElements);
-    resultsText.innerHTML = `Showing <span class="font-bold text-gray-900 dark:text-white">${start}</span> to <span class="font-bold text-gray-900 dark:text-white">${end}</span> of <span class="font-bold text-gray-900 dark:text-white">${totalElements}</span> entries`;
+    resultsText.innerHTML = `Hiển thị <span class="font-bold text-gray-900 dark:text-white">${start}</span> - <span class="font-bold text-gray-900 dark:text-white">${end}</span> trong <span class="font-bold text-gray-900 dark:text-white">${totalElements}</span> bản ghi`;
   }
   
   console.log(`[updateResultsText] Showing ${currentPage * pageSize + 1}-${Math.min((currentPage + 1) * pageSize, totalElements)} of ${totalElements}`);
@@ -579,6 +582,13 @@ function init() {
 
   window.saveCustomer = async function() {
     if (!_cdmCustomerId) return;
+
+    const confirmed = await showConfirm('Bạn có chắc muốn cập nhật thông tin khách hàng này?', {
+      confirmText: 'Cập nhật',
+      cancelText: 'Hủy',
+    });
+    if (!confirmed) return;
+
     const saveBtn = document.getElementById('cdm-save-btn');
     if (saveBtn) { saveBtn.disabled = true; saveBtn.innerHTML = '<span class="material-symbols-outlined text-base animate-spin">progress_activity</span> Đang lưu...'; }
     try {
@@ -596,10 +606,6 @@ function init() {
     document.getElementById('customer-detail-modal')?.classList.add('hidden');
     _cdmCustomerId = null;
   };
-
-  document.getElementById('customer-detail-modal')?.addEventListener('click', (e) => {
-    if (e.target.id === 'customer-detail-modal') window.closeCustomerModal();
-  });
 
   // Wire view/edit table actions to modal
   window.viewCustomer  = (customerId) => openCustomerModal(customerId, 'view');
@@ -636,10 +642,6 @@ function init() {
       if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-outlined text-base">person_add</span> Tạo khách hàng'; }
     }
   };
-
-  document.getElementById('create-customer-modal')?.addEventListener('click', (e) => {
-    if (e.target.id === 'create-customer-modal') window.closeCreateCustomerModal();
-  });
 
   // ── Create Loan Modal ─────────────────────────────────────────────────────
   let _clmCustomerId = null;
@@ -682,10 +684,6 @@ function init() {
       if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-outlined text-base">send</span> Tạo khoản vay'; }
     }
   };
-
-  document.getElementById('create-loan-modal')?.addEventListener('click', (e) => {
-    if (e.target.id === 'create-loan-modal') window.closeCreateLoanModal();
-  });
 
   // Wire create actions to modals (override module-level navigate functions)
   window.createLoanForCustomer = (customerId) => openCreateLoanModal(customerId);
@@ -750,6 +748,12 @@ function init() {
   };
 
   window.saveMyProfile = async function() {
+    const confirmed = await showConfirm('Bạn có chắc muốn cập nhật thông tin hồ sơ?', {
+      confirmText: 'Cập nhật',
+      cancelText: 'Hủy',
+    });
+    if (!confirmed) return;
+
     const saveBtn = document.getElementById('mp-save-btn');
     if (saveBtn) { saveBtn.disabled = true; saveBtn.innerHTML = '<span class="material-symbols-outlined text-base animate-spin">progress_activity</span> Đang lưu...'; }
     const { accessToken, userId } = _mpGetAuth();
@@ -768,10 +772,6 @@ function init() {
   window.closeMyProfileModal = function() {
     document.getElementById('my-profile-modal')?.classList.add('hidden');
   };
-
-  document.getElementById('my-profile-modal')?.addEventListener('click', (e) => {
-    if (e.target.id === 'my-profile-modal') window.closeMyProfileModal();
-  });
 }
 
 // Run init when DOM is ready

@@ -3,17 +3,13 @@
 // All form-field IDs are prefixed with "ec-" to avoid collisions with other elements.
 
 import { getCustomerById, updateCustomer } from '/src/services/customer.service.js';
-
-// ─── Formatters ──────────────────────────────────────────────────────────────
-
-function fmt(value, fallback = 'N/A') {
-    return value != null && value !== '' ? value : fallback;
-}
-
-function fmtCurrency(amount) {
-    if (amount == null) return 'N/A';
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', minimumFractionDigits: 0 }).format(amount);
-}
+import {
+  EMPTY_LABEL,
+  formatCurrencyVnd,
+  formatHomeOwnership,
+  formatLoanGradeLabel,
+  orEmpty,
+} from '/src/utils/formatter.js';
 
 function infoRow(label, value) {
     return `
@@ -38,17 +34,23 @@ const OWNERSHIP_BADGE = {
 // ─── View HTML ───────────────────────────────────────────────────────────────
 
 export function renderCustomerViewHtml(customer) {
-    const grade     = customer.loanGrade || 'N/A';
-    const ownership = customer.personHomeOwnership || 'N/A';
+    const gradeKey = typeof customer.loanGrade === 'object'
+        ? customer.loanGrade?.name || customer.loanGrade?.value
+        : customer.loanGrade;
+    const grade = gradeKey || null;
+    const ownershipKey = typeof customer.personHomeOwnership === 'object'
+        ? customer.personHomeOwnership?.name || customer.personHomeOwnership?.value
+        : customer.personHomeOwnership;
+    const ownershipLabel = formatHomeOwnership(ownershipKey);
     const hasDefault = String(customer.cbPersonDefaultOnFile || '').toUpperCase() === 'Y';
 
-    const gradeBadge = grade !== 'N/A'
+    const gradeBadge = grade
         ? `<span class="inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-black ${GRADE_BADGE[grade] || 'bg-gray-100 text-gray-700'}">${grade}</span>`
-        : '<span class="text-sm font-medium text-slate-400">N/A</span>';
+        : `<span class="text-sm font-medium text-slate-400">${EMPTY_LABEL}</span>`;
 
-    const ownershipBadge = ownership !== 'N/A'
-        ? `<span class="inline-flex items-center px-2.5 py-1 rounded text-xs font-bold uppercase ${OWNERSHIP_BADGE[ownership] || 'bg-gray-100 text-gray-700'}">${ownership}</span>`
-        : '<span class="text-sm text-slate-400">N/A</span>';
+    const ownershipBadge = ownershipKey
+        ? `<span class="inline-flex items-center px-2.5 py-1 rounded text-xs font-bold ${OWNERSHIP_BADGE[ownershipKey] || 'bg-gray-100 text-gray-700'}">${ownershipLabel}</span>`
+        : `<span class="text-sm text-slate-400">${EMPTY_LABEL}</span>`;
 
     const defaultBadge = hasDefault
         ? '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-bold bg-red-100 text-red-700"><span class="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"></span>Đã từng vỡ nợ</span>'
@@ -64,10 +66,10 @@ export function renderCustomerViewHtml(customer) {
                     Thông tin cơ bản
                 </h3>
                 <div class="grid grid-cols-2 gap-4">
-                    ${infoRow('Họ và tên', `<span class="font-semibold">${fmt(customer.fullName)}</span>`)}
-                    ${infoRow('Email', fmt(customer.email))}
-                    ${infoRow('Tuổi', customer.personAge != null ? `${customer.personAge} tuổi` : 'N/A')}
-                    ${infoRow('Mã khách hàng', `<span class="font-mono text-xs">${fmt(customer.customerProfileId)}</span>`)}
+                    ${infoRow('Họ và tên', `<span class="font-semibold">${orEmpty(customer.fullName)}</span>`)}
+                    ${infoRow('Email', orEmpty(customer.email))}
+                    ${infoRow('Tuổi', customer.personAge != null ? `${customer.personAge} tuổi` : EMPTY_LABEL)}
+                    ${infoRow('Mã khách hàng', `<span class="font-mono text-xs">${orEmpty(customer.customerProfileId)}</span>`)}
                 </div>
             </div>
 
@@ -78,15 +80,15 @@ export function renderCustomerViewHtml(customer) {
                     Tình trạng tài chính
                 </h3>
                 <div class="grid grid-cols-2 gap-4">
-                    ${infoRow('Thu nhập hàng năm', fmtCurrency(customer.personIncome))}
+                    ${infoRow('Thu nhập hàng năm', formatCurrencyVnd(customer.personIncome))}
                     <div>
                         <p class="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Hình thức sở hữu nhà</p>
                         ${ownershipBadge}
                     </div>
-                    ${infoRow('Thâm niên công việc', customer.personEmpLength != null ? `${customer.personEmpLength} năm` : 'N/A')}
+                    ${infoRow('Thâm niên công việc', customer.personEmpLength != null ? `${customer.personEmpLength} năm` : EMPTY_LABEL)}
                     <div>
                         <p class="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Hạng tín dụng</p>
-                        <div class="flex items-center gap-2">${gradeBadge}</div>
+                        <div class="flex items-center gap-2">${gradeBadge}<span class="text-xs text-slate-500">${formatLoanGradeLabel(grade)}</span></div>
                     </div>
                 </div>
             </div>
@@ -102,7 +104,7 @@ export function renderCustomerViewHtml(customer) {
                         <p class="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Tiền sử vỡ nợ</p>
                         ${defaultBadge}
                     </div>
-                    ${infoRow('Thâm niên tín dụng', customer.cbPersonCredHistLength != null ? `${customer.cbPersonCredHistLength} năm` : 'N/A')}
+                    ${infoRow('Thâm niên tín dụng', customer.cbPersonCredHistLength != null ? `${customer.cbPersonCredHistLength} năm` : EMPTY_LABEL)}
                 </div>
             </div>
 
@@ -160,11 +162,11 @@ export function renderCustomerEditFormHtml() {
                         <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Hình thức sở hữu nhà <span class="text-red-500">*</span></label>
                         <select id="ec-personHomeOwnership" name="personHomeOwnership" required
                             class="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
-                            <option value="">Select...</option>
-                            <option value="OWN">OWN</option>
-                            <option value="RENT">RENT</option>
-                            <option value="MORTGAGE">MORTGAGE</option>
-                            <option value="OTHER">OTHER</option>
+                            <option value="">-- Chọn --</option>
+                            <option value="OWN">Sở hữu</option>
+                            <option value="RENT">Thuê nhà</option>
+                            <option value="MORTGAGE">Đang thế chấp</option>
+                            <option value="OTHER">Khác</option>
                         </select>
                     </div>
                     <div>
@@ -176,7 +178,7 @@ export function renderCustomerEditFormHtml() {
                         <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Hạng tín dụng <span class="text-red-500">*</span></label>
                         <select id="ec-loanGrade" name="loanGrade" required
                             class="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
-                            <option value="">Select...</option>
+                            <option value="">-- Chọn --</option>
                             <option value="A">A – Xuất sắc</option>
                             <option value="B">B – Rất tốt</option>
                             <option value="C">C – Tốt</option>

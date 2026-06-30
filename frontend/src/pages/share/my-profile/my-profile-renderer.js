@@ -2,29 +2,28 @@
 // Shared rendering utilities for the My Profile / View User Profile view (modal & standalone page)
 
 import { getCurrentProfile, getProfileById } from '/src/services/identity.service.js';
+import {
+    EMPTY_LABEL,
+    formatDateTimeVi,
+    formatDateVi,
+    orEmpty,
+} from '/src/utils/formatter.js';
 
 // ─── Formatters ──────────────────────────────────────────────────────────────
 
 function formatDate(dateString) {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-US', {
-        year: 'numeric', month: 'long', day: 'numeric',
-        hour: '2-digit', minute: '2-digit',
-    });
+    return formatDateTimeVi(dateString);
 }
 
 function formatDateOnly(dateString) {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-US', {
-        year: 'numeric', month: 'long', day: 'numeric',
-    });
+    return formatDateVi(dateString);
 }
 
 function infoRow(label, value) {
     return `
         <div>
             <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">${label}</p>
-            <p class="text-sm text-gray-900 font-medium">${value || 'N/A'}</p>
+            <p class="text-sm text-gray-900 font-medium">${value ?? EMPTY_LABEL}</p>
         </div>`;
 }
 
@@ -45,10 +44,10 @@ export function renderProfileHtml(profile) {
                     Thông tin cơ bản
                 </h3>
                 <div class="grid grid-cols-2 gap-4">
-                    ${infoRow('Mã người dùng', `<span class="font-mono text-xs">${profile.userId || 'N/A'}</span>`)}
-                    ${infoRow('Tên đăng nhập', profile.userSlug)}
-                    ${infoRow('Họ và tên', `<span class="font-semibold text-gray-900">${profile.fullName || 'N/A'}</span>`)}
-                    ${infoRow('Email', profile.email)}
+                    ${infoRow('Mã người dùng', `<span class="font-mono text-xs">${orEmpty(profile.userId)}</span>`)}
+                    ${infoRow('Tên đăng nhập', orEmpty(profile.userSlug))}
+                    ${infoRow('Họ và tên', `<span class="font-semibold text-gray-900">${orEmpty(profile.fullName)}</span>`)}
+                    ${infoRow('Email', orEmpty(profile.email))}
                 </div>
             </div>
 
@@ -59,8 +58,8 @@ export function renderProfileHtml(profile) {
                     Thông tin công việc
                 </h3>
                 <div class="grid grid-cols-2 gap-4">
-                    ${infoRow('Phòng ban', profile.department)}
-                    ${infoRow('Chức vụ', profile.position)}
+                    ${infoRow('Phòng ban', orEmpty(profile.department))}
+                    ${infoRow('Chức vụ', orEmpty(profile.position))}
                     ${infoRow('Ngày vào làm', formatDateOnly(profile.hireDate))}
                     <div>
                         <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Trạng thái</p>
@@ -76,8 +75,8 @@ export function renderProfileHtml(profile) {
                     Thông tin liên hệ
                 </h3>
                 <div class="grid grid-cols-2 gap-4">
-                    ${infoRow('Số điện thoại', profile.phoneNumber)}
-                    <div class="col-span-2">${infoRow('Địa chỉ', profile.address)}</div>
+                    ${infoRow('Số điện thoại', orEmpty(profile.phoneNumber))}
+                    <div class="col-span-2">${infoRow('Địa chỉ', orEmpty(profile.address))}</div>
                 </div>
             </div>
 
